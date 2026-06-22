@@ -1,0 +1,1 @@
+print("Course project development environment is ready.")
