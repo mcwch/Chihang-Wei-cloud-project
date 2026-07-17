@@ -58,7 +58,8 @@ def page_style():
             border-radius: 5px;
         }
 
-        .product, .detail {
+        .product,
+        .detail {
             background-color: white;
             padding: 15px;
             margin: 10px 0;
@@ -77,8 +78,17 @@ def create_app(test_config=None):
     app = Flask(__name__)
     app.config.from_object(Config)
 
-    if test_config:
-        app.config.update(test_config)
+    test_config = test_config or {}
+    app.config.update(test_config)
+
+    # Use the separate MySQL test database during pytest.
+    if (
+        app.config.get("TESTING")
+        and "SQLALCHEMY_DATABASE_URI" not in test_config
+    ):
+        app.config["SQLALCHEMY_DATABASE_URI"] = (
+            app.config["SQLALCHEMY_TEST_DATABASE_URI"]
+        )
 
     db.init_app(app)
 
@@ -103,6 +113,10 @@ def create_app(test_config=None):
         <html lang="en">
         <head>
             <meta charset="UTF-8">
+            <meta
+                name="viewport"
+                content="width=device-width, initial-scale=1.0"
+            >
             <title>Simple Ecommerce Store</title>
             {page_style()}
         </head>
@@ -144,6 +158,10 @@ def create_app(test_config=None):
         <html lang="en">
         <head>
             <meta charset="UTF-8">
+            <meta
+                name="viewport"
+                content="width=device-width, initial-scale=1.0"
+            >
             <title>{selected_product["name"]}</title>
             {page_style()}
         </head>
@@ -155,21 +173,26 @@ def create_app(test_config=None):
                     <strong>Price:</strong>
                     {selected_product["price"]}
                 </p>
+
                 <p>
                     <strong>Stock Quantity:</strong>
                     {selected_product["stock"]}
                 </p>
+
                 <p>
                     <strong>Inventory Status:</strong>
                     {inventory_status}
                 </p>
+
                 <p>
                     <strong>Description:</strong>
                     {selected_product["description"]}
                 </p>
             </div>
 
-            <p><a href="/">Back to Product List</a></p>
+            <p>
+                <a href="/">Back to Product List</a>
+            </p>
         </body>
         </html>
         """
@@ -181,4 +204,8 @@ app = create_app()
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=3000, debug=True)
+    app.run(
+        host="0.0.0.0",
+        port=3000,
+        debug=True,
+    )
