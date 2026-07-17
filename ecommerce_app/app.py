@@ -1,6 +1,8 @@
 ﻿from flask import Flask, abort
 
-app = Flask(__name__)
+from config import Config
+from models import db
+
 
 products = [
     {
@@ -8,23 +10,33 @@ products = [
         "name": "Wireless Headphones",
         "price": "$59.99",
         "stock": 12,
-        "description": "Comfortable wireless headphones for music, video calls, and daily use."
+        "description": (
+            "Comfortable wireless headphones for music, "
+            "video calls, and daily use."
+        ),
     },
     {
         "id": 2,
         "name": "USB-C Charger",
         "price": "$19.99",
         "stock": 25,
-        "description": "A compact USB-C charger for phones, tablets, and other devices."
+        "description": (
+            "A compact USB-C charger for phones, tablets, "
+            "and other devices."
+        ),
     },
     {
         "id": 3,
         "name": "Laptop Stand",
         "price": "$39.99",
         "stock": 8,
-        "description": "An adjustable laptop stand that helps improve desk setup and comfort."
-    }
+        "description": (
+            "An adjustable laptop stand that helps improve "
+            "desk setup and comfort."
+        ),
+    },
 ]
+
 
 def page_style():
     return """
@@ -60,78 +72,113 @@ def page_style():
     </style>
     """
 
-@app.route("/")
-def home():
-    product_html = ""
 
-    for product in products:
-        product_html += f"""
-        <div class="product">
-            <strong>{product["name"]}</strong><br>
-            Price: {product["price"]}<br>
-            In Stock: {product["stock"]}<br>
-            <a href="/product/{product["id"]}">View Details</a>
-        </div>
+def create_app(test_config=None):
+    app = Flask(__name__)
+    app.config.from_object(Config)
+
+    if test_config:
+        app.config.update(test_config)
+
+    db.init_app(app)
+
+    @app.route("/")
+    def home():
+        product_html = ""
+
+        for product in products:
+            product_html += f"""
+            <div class="product">
+                <strong>{product["name"]}</strong><br>
+                Price: {product["price"]}<br>
+                In Stock: {product["stock"]}<br>
+                <a href="/product/{product["id"]}">
+                    View Details
+                </a>
+            </div>
+            """
+
+        return f"""
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <title>Simple Ecommerce Store</title>
+            {page_style()}
+        </head>
+        <body>
+            <h1>Simple Ecommerce Store</h1>
+
+            <div class="banner">
+                Summer Sale: 20% off selected items!
+            </div>
+
+            <h2>Available Products</h2>
+            {product_html}
+        </body>
+        </html>
         """
 
-    return f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>Simple Ecommerce Store</title>
-        {page_style()}
-    </head>
-    <body>
-        <h1>Simple Ecommerce Store</h1>
+    @app.route("/product/<int:product_id>")
+    def product_detail(product_id):
+        selected_product = next(
+            (
+                product
+                for product in products
+                if product["id"] == product_id
+            ),
+            None,
+        )
 
-        <div class="banner">
-            Summer Sale: 20% off selected items!
-        </div>
+        if selected_product is None:
+            abort(404)
 
-        <h2>Available Products</h2>
-        {product_html}
-    </body>
-    </html>
-    """
+        inventory_status = (
+            "Available"
+            if selected_product["stock"] > 0
+            else "Out of stock"
+        )
 
-@app.route("/product/<int:product_id>")
-def product_detail(product_id):
-    selected_product = None
+        return f"""
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <title>{selected_product["name"]}</title>
+            {page_style()}
+        </head>
+        <body>
+            <h1>{selected_product["name"]}</h1>
 
-    for product in products:
-        if product["id"] == product_id:
-            selected_product = product
-            break
+            <div class="detail">
+                <p>
+                    <strong>Price:</strong>
+                    {selected_product["price"]}
+                </p>
+                <p>
+                    <strong>Stock Quantity:</strong>
+                    {selected_product["stock"]}
+                </p>
+                <p>
+                    <strong>Inventory Status:</strong>
+                    {inventory_status}
+                </p>
+                <p>
+                    <strong>Description:</strong>
+                    {selected_product["description"]}
+                </p>
+            </div>
 
-    if selected_product is None:
-        abort(404)
+            <p><a href="/">Back to Product List</a></p>
+        </body>
+        </html>
+        """
 
-    if selected_product["stock"] > 0:
-        inventory_status = "Available"
-    else:
-        inventory_status = "Out of stock"
+    return app
 
-    return f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>{selected_product["name"]}</title>
-        {page_style()}
-    </head>
-    <body>
-        <h1>{selected_product["name"]}</h1>
 
-        <div class="detail">
-            <p><strong>Price:</strong> {selected_product["price"]}</p>
-            <p><strong>Stock Quantity:</strong> {selected_product["stock"]}</p>
-            <p><strong>Inventory Status:</strong> {inventory_status}</p>
-            <p><strong>Description:</strong> {selected_product["description"]}</p>
-        </div>
+app = create_app()
 
-        <p><a href="/">Back to Product List</a></p>
-    </body>
-    </html>
-    """
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=3000, debug=True)
