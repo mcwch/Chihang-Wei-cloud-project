@@ -65,8 +65,10 @@ def create_app(test_config=None):
         current_quantity = int(cart.get(product_key, 0))
         new_quantity = current_quantity + quantity
 
-        # Prevent the cart quantity from exceeding inventory.
-        cart[product_key] = min(new_quantity, product.stock)
+        cart[product_key] = min(
+            new_quantity,
+            product.stock,
+        )
 
         session["cart"] = cart
         session.modified = True
@@ -102,7 +104,9 @@ def create_app(test_config=None):
         cart_total = Decimal("0.00")
 
         for product_id, quantity in cart.items():
-            product = products_by_id.get(int(product_id))
+            product = products_by_id.get(
+                int(product_id)
+            )
 
             if product is None:
                 continue
@@ -123,6 +127,48 @@ def create_app(test_config=None):
             cart_items=cart_items,
             cart_total=cart_total,
         )
+
+    @app.post("/cart/update/<int:product_id>")
+    def update_cart(product_id):
+        product = db.get_or_404(Product, product_id)
+
+        try:
+            quantity = int(request.form.get("quantity", 1))
+        except (TypeError, ValueError):
+            quantity = 1
+
+        cart = session.get("cart", {})
+        product_key = str(product.id)
+
+        if quantity <= 0 or product.stock <= 0:
+            cart.pop(product_key, None)
+        else:
+            cart[product_key] = min(
+                quantity,
+                product.stock,
+            )
+
+        session["cart"] = cart
+        session.modified = True
+
+        return redirect(url_for("view_cart"))
+
+    @app.post("/cart/remove/<int:product_id>")
+    def remove_from_cart(product_id):
+        cart = session.get("cart", {})
+        cart.pop(str(product_id), None)
+
+        session["cart"] = cart
+        session.modified = True
+
+        return redirect(url_for("view_cart"))
+
+    @app.post("/cart/clear")
+    def clear_cart():
+        session["cart"] = {}
+        session.modified = True
+
+        return redirect(url_for("view_cart"))
 
     return app
 
