@@ -1,0 +1,42 @@
+﻿{% extends "base.html" %}
+
+{% block title %}{{ product.name }} | Simple Ecommerce Store{% endblock %}
+
+{% block content %}
+<a class="back-link" href="{{ url_for('home') }}">
+    ← Back to Product List
+</a>
+
+<section class="product-detail">
+    <div class="product-category">
+        {{ product.category }}
+    </div>
+
+    <h1>{{ product.name }}</h1>
+
+    <p class="detail-price">
+        ${{ "%.2f"|format(product.price) }}
+    </p>
+
+    <p class="detail-description">
+        {{ product.description }}
+    </p>
+
+    <div class="inventory-panel">
+        <div>
+            <span class="label">Stock Quantity</span>
+            <strong>{{ product.stock }}</strong>
+        </div>
+
+        <div>
+            <span class="label">Inventory Status</span>
+
+            {% if product.stock > 0 %}
+                <strong class="available">Available</strong>
+            {% else %}
+                <strong class="out-of-stock">Out of Stock</strong>
+            {% endif %}
+        </div>
+    </div>
+</section>
+{% endblock %}
