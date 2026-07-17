@@ -1,0 +1,62 @@
+﻿{% extends "base.html" %}
+
+{% block title %}Order Confirmed | Simple Ecommerce Store{% endblock %}
+
+{% block content %}
+<section class="success-page">
+    <div class="success-card">
+        <div class="success-icon">✓</div>
+
+        <p class="eyebrow">Order Confirmed</p>
+
+        <h1>Thank you, {{ order.customer_name }}!</h1>
+
+        <p>
+            Your order has been successfully stored in the
+            MySQL database.
+        </p>
+
+        <div class="order-number">
+            Order Number:
+            <strong>#{{ order.id }}</strong>
+        </div>
+
+        <div class="confirmation-details">
+            <div>
+                <span>Email</span>
+                <strong>{{ order.email }}</strong>
+            </div>
+
+            <div>
+                <span>Order Total</span>
+                <strong>
+                    ${{ "%.2f"|format(order.total_price) }}
+                </strong>
+            </div>
+        </div>
+
+        <section class="confirmation-items">
+            <h2>Items Ordered</h2>
+
+            {% for item in order.items %}
+                <div class="confirmation-item">
+                    <div>
+                        <strong>{{ item.product.name }}</strong>
+                        <span>Quantity: {{ item.quantity }}</span>
+                    </div>
+
+                    <strong>
+                        ${{ "%.2f"|format(
+                            item.unit_price * item.quantity
+                        ) }}
+                    </strong>
+                </div>
+            {% endfor %}
+        </section>
+
+        <a class="button" href="{{ url_for('home') }}">
+            Continue Shopping
+        </a>
+    </div>
+</section>
+{% endblock %}

@@ -1,0 +1,109 @@
+﻿{% extends "base.html" %}
+
+{% block title %}Checkout | Simple Ecommerce Store{% endblock %}
+
+{% block content %}
+<section class="checkout-page">
+    <a class="back-link" href="{{ url_for('view_cart') }}">
+        ← Back to Shopping Cart
+    </a>
+
+    <div class="checkout-heading">
+        <div>
+            <p class="eyebrow">Secure Checkout</p>
+            <h1>Checkout</h1>
+            <p>
+                Review your order and enter your customer information.
+            </p>
+        </div>
+    </div>
+
+    {% if error_message %}
+        <div class="error-message">
+            {{ error_message }}
+        </div>
+    {% endif %}
+
+    <div class="checkout-layout">
+        <form
+            class="checkout-form"
+            method="post"
+            action="{{ url_for('checkout') }}"
+        >
+            <h2>Customer Information</h2>
+
+            <label for="customer_name">
+                Customer Name
+            </label>
+
+            <input
+                id="customer_name"
+                name="customer_name"
+                type="text"
+                value="{{ request.form.get('customer_name', '') }}"
+                required
+            >
+
+            <label for="email">
+                Email Address
+            </label>
+
+            <input
+                id="email"
+                name="email"
+                type="email"
+                value="{{ request.form.get('email', '') }}"
+                required
+            >
+
+            <label for="address">
+                Shipping Address
+            </label>
+
+            <textarea
+                id="address"
+                name="address"
+                rows="5"
+                required
+            >{{ request.form.get('address', '') }}</textarea>
+
+            <button class="place-order-button" type="submit">
+                Place Order
+            </button>
+
+            <p class="payment-note">
+                This is a simulated checkout. No real payment
+                information is collected.
+            </p>
+        </form>
+
+        <aside class="checkout-summary">
+            <h2>Order Summary</h2>
+
+            {% for item in cart_items %}
+                <div class="checkout-item">
+                    <div>
+                        <strong>{{ item.product.name }}</strong>
+
+                        <span>
+                            Quantity: {{ item.quantity }}
+                        </span>
+                    </div>
+
+                    <strong>
+                        ${{ "%.2f"|format(item.subtotal) }}
+                    </strong>
+                </div>
+            {% endfor %}
+
+            <div class="checkout-total">
+                <span>Total</span>
+
+                <strong>
+                    ${{ "%.2f"|format(cart_total) }}
+                </strong>
+            </div>
+        </aside>
+    </div>
+</section>
+{% endblock %}
