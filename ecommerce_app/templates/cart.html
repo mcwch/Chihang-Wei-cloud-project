@@ -16,12 +16,19 @@
         <div class="cart-list">
             {% for item in cart_items %}
                 <article class="cart-item">
-                    <div>
+                    <div class="cart-product-info">
                         <div class="product-category">
                             {{ item.product.category }}
                         </div>
 
-                        <h2>{{ item.product.name }}</h2>
+                        <h2>
+                            <a href="{{ url_for(
+                                'product_detail',
+                                product_id=item.product.id
+                            ) }}">
+                                {{ item.product.name }}
+                            </a>
+                        </h2>
 
                         <p>
                             Unit Price:
@@ -29,27 +36,98 @@
                         </p>
 
                         <p>
-                            Quantity: {{ item.quantity }}
+                            Available Stock:
+                            {{ item.product.stock }}
                         </p>
                     </div>
 
-                    <div class="cart-subtotal">
-                        <span>Subtotal</span>
+                    <form
+                        class="quantity-form"
+                        method="post"
+                        action="{{ url_for(
+                            'update_cart',
+                            product_id=item.product.id
+                        ) }}"
+                    >
+                        <label for="quantity-{{ item.product.id }}">
+                            Quantity
+                        </label>
 
-                        <strong>
-                            ${{ "%.2f"|format(item.subtotal) }}
-                        </strong>
+                        <input
+                            id="quantity-{{ item.product.id }}"
+                            name="quantity"
+                            type="number"
+                            value="{{ item.quantity }}"
+                            min="0"
+                            max="{{ item.product.stock }}"
+                            required
+                        >
+
+                        <button
+                            class="secondary-button"
+                            type="submit"
+                        >
+                            Update
+                        </button>
+                    </form>
+
+                    <div class="cart-actions">
+                        <div class="cart-subtotal">
+                            <span>Subtotal</span>
+
+                            <strong>
+                                ${{ "%.2f"|format(item.subtotal) }}
+                            </strong>
+                        </div>
+
+                        <form
+                            method="post"
+                            action="{{ url_for(
+                                'remove_from_cart',
+                                product_id=item.product.id
+                            ) }}"
+                        >
+                            <button
+                                class="remove-button"
+                                type="submit"
+                            >
+                                Remove
+                            </button>
+                        </form>
                     </div>
                 </article>
             {% endfor %}
         </div>
 
         <section class="cart-summary">
-            <span>Order Total</span>
+            <div>
+                <span>Order Total</span>
 
-            <strong>
-                ${{ "%.2f"|format(cart_total) }}
-            </strong>
+                <strong>
+                    ${{ "%.2f"|format(cart_total) }}
+                </strong>
+            </div>
+
+            <div class="summary-actions">
+                <form
+                    method="post"
+                    action="{{ url_for('clear_cart') }}"
+                >
+                    <button
+                        class="clear-button"
+                        type="submit"
+                    >
+                        Clear Cart
+                    </button>
+                </form>
+
+                <a
+                    class="checkout-button"
+                    href="{{ url_for('checkout') }}"
+                >
+                    Proceed to Checkout
+                </a>
+            </div>
         </section>
     {% else %}
         <div class="empty-state">
@@ -66,4 +144,3 @@
     {% endif %}
 </section>
 {% endblock %}
-

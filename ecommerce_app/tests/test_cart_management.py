@@ -112,3 +112,19 @@ def test_clear_cart_removes_all_items():
 
     with client.session_transaction() as session:
         assert session["cart"] == {}
+
+
+def test_cart_page_displays_management_controls():
+    app = create_app({"TESTING": True})
+    product_id = create_product(app)
+    client = app.test_client()
+
+    add_cart_item(client, product_id, quantity=2)
+
+    response = client.get("/cart")
+
+    assert response.status_code == 200
+    assert b"Update" in response.data
+    assert b"Remove" in response.data
+    assert b"Clear Cart" in response.data
+    assert b"Proceed to Checkout" in response.data
