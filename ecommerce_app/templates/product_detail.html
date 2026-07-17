@@ -38,5 +38,38 @@
             {% endif %}
         </div>
     </div>
+
+    {% if product.stock > 0 %}
+        <form
+            class="add-cart-form"
+            method="post"
+            action="{{ url_for(
+                'add_to_cart',
+                product_id=product.id
+            ) }}"
+        >
+            <label for="quantity">
+                Quantity
+            </label>
+
+            <input
+                id="quantity"
+                name="quantity"
+                type="number"
+                value="1"
+                min="1"
+                max="{{ product.stock }}"
+                required
+            >
+
+            <button class="button" type="submit">
+                Add to Cart
+            </button>
+        </form>
+    {% else %}
+        <p class="out-of-stock">
+            This product is currently unavailable.
+        </p>
+    {% endif %}
 </section>
 {% endblock %}

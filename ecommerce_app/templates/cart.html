@@ -1,0 +1,68 @@
+﻿{% extends "base.html" %}
+
+{% block title %}Shopping Cart | Simple Ecommerce Store{% endblock %}
+
+{% block content %}
+<section class="cart-page">
+    <div class="section-heading">
+        <h1>Shopping Cart</h1>
+
+        <a class="back-link" href="{{ url_for('home') }}">
+            Continue Shopping
+        </a>
+    </div>
+
+    {% if cart_items %}
+        <div class="cart-list">
+            {% for item in cart_items %}
+                <article class="cart-item">
+                    <div>
+                        <div class="product-category">
+                            {{ item.product.category }}
+                        </div>
+
+                        <h2>{{ item.product.name }}</h2>
+
+                        <p>
+                            Unit Price:
+                            ${{ "%.2f"|format(item.product.price) }}
+                        </p>
+
+                        <p>
+                            Quantity: {{ item.quantity }}
+                        </p>
+                    </div>
+
+                    <div class="cart-subtotal">
+                        <span>Subtotal</span>
+
+                        <strong>
+                            ${{ "%.2f"|format(item.subtotal) }}
+                        </strong>
+                    </div>
+                </article>
+            {% endfor %}
+        </div>
+
+        <section class="cart-summary">
+            <span>Order Total</span>
+
+            <strong>
+                ${{ "%.2f"|format(cart_total) }}
+            </strong>
+        </section>
+    {% else %}
+        <div class="empty-state">
+            <h2>Your cart is empty</h2>
+
+            <p>
+                Add a product to begin your order.
+            </p>
+
+            <a class="button" href="{{ url_for('home') }}">
+                Browse Products
+            </a>
+        </div>
+    {% endif %}
+</section>
+{% endblock %}

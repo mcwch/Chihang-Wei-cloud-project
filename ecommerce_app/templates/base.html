@@ -2,11 +2,16 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+
     <meta
         name="viewport"
         content="width=device-width, initial-scale=1.0"
     >
-    <title>{% block title %}Simple Ecommerce Store{% endblock %}</title>
+
+    <title>
+        {% block title %}Simple Ecommerce Store{% endblock %}
+    </title>
+
     <link
         rel="stylesheet"
         href="{{ url_for('static', filename='style.css') }}"
@@ -20,7 +25,14 @@
             </a>
 
             <nav>
-                <a href="{{ url_for('home') }}">Products</a>
+                <a href="{{ url_for('home') }}">
+                    Products
+                </a>
+
+                <a href="{{ url_for('view_cart') }}">
+                    Cart
+                    ({{ session.get("cart", {}).values() | sum }})
+                </a>
             </nav>
         </div>
     </header>
