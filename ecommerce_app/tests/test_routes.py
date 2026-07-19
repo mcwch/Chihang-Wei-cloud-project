@@ -232,3 +232,48 @@ def test_order_success_uses_local_confirmation_without_function_url():
     with app.app_context():
         Order.query.delete()
         db.session.commit()
+
+
+def test_order_success_displays_serverless_confirmation(
+    monkeypatch,
+):
+    app = create_app({
+        "TESTING": True,
+        "DIGITALOCEAN_FUNCTION_URL": (
+            "https://example.com/function"
+        ),
+    })
+    order_id = create_database_order(app)
+
+    def fake_confirmation(
+        function_url,
+        order_id,
+        customer_name,
+    ):
+        assert function_url == (
+            "https://example.com/function"
+        )
+        assert customer_name == "Michael"
+
+        return (
+            f"DigitalOcean confirmed order #{order_id}."
+        )
+
+    monkeypatch.setattr(
+        "serverless.get_order_confirmation",
+        fake_confirmation,
+    )
+
+    client = app.test_client()
+    response = client.get(f"/order-success/{order_id}")
+
+    assert response.status_code == 200
+    assert (
+        f"DigitalOcean confirmed order #{order_id}."
+        .encode()
+        in response.data
+    )
+
+    with app.app_context():
+        Order.query.delete()
+        db.session.commit()

@@ -1,4 +1,6 @@
-﻿from decimal import Decimal
+from decimal import Decimal
+
+import serverless
 
 from flask import (
     Flask,
@@ -330,6 +332,20 @@ def create_app(test_config=None):
         confirmation_message = (
             f"Order #{order.id} has been received."
         )
+
+        function_url = app.config.get(
+            "DIGITALOCEAN_FUNCTION_URL",
+            "",
+        ).strip()
+
+        if function_url:
+            confirmation_message = (
+                serverless.get_order_confirmation(
+                    function_url=function_url,
+                    order_id=order.id,
+                    customer_name=order.customer_name,
+                )
+            )
 
         return render_template(
             "order_success.html",
