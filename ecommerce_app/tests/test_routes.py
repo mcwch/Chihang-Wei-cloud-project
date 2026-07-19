@@ -94,3 +94,71 @@ def test_orders_page_displays_order_information():
     assert b"Michael" in response.data
     assert b"$89.99" in response.data
     assert b"Pending" in response.data
+
+
+def create_order_with_item(app):
+    with app.app_context():
+        db.create_all()
+
+        OrderItem.query.delete()
+        Order.query.delete()
+        Product.query.delete()
+        db.session.commit()
+
+        product = Product(
+            name="Cloud Mouse",
+            description="A wireless mouse.",
+            price=Decimal("39.99"),
+            stock=5,
+            category="Accessories",
+            image_url=None,
+        )
+
+        db.session.add(product)
+        db.session.flush()
+
+        order = Order(
+            customer_name="Michael",
+            email="michael@example.com",
+            address="Toronto, Ontario",
+            total_price=Decimal("79.98"),
+            status="Pending",
+        )
+
+        db.session.add(order)
+        db.session.flush()
+
+        item = OrderItem(
+            order_id=order.id,
+            product_id=product.id,
+            quantity=2,
+            unit_price=Decimal("39.99"),
+        )
+
+        db.session.add(item)
+        db.session.commit()
+
+        return order.id
+
+
+def test_order_detail_page_displays_customer_and_items():
+    app = create_app({"TESTING": True})
+    order_id = create_order_with_item(app)
+
+    client = app.test_client()
+    response = client.get(f"/orders/{order_id}")
+
+    with app.app_context():
+        OrderItem.query.delete()
+        Order.query.delete()
+        Product.query.delete()
+        db.session.commit()
+
+    assert response.status_code == 200
+    assert f"Order #{order_id}".encode() in response.data
+    assert b"Michael" in response.data
+    assert b"michael@example.com" in response.data
+    assert b"Toronto, Ontario" in response.data
+    assert b"Cloud Mouse" in response.data
+    assert b"Quantity: 2" in response.data
+    assert b"$39.99" in response.data

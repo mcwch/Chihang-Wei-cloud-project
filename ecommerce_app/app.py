@@ -287,6 +287,15 @@ def create_app(test_config=None):
             orders=all_orders,
         )
 
+    @app.route("/orders/<int:order_id>")
+    def order_detail(order_id):
+        order = db.get_or_404(Order, order_id)
+
+        return render_template(
+            "order_detail.html",
+            order=order,
+        )
+
     @app.route("/order-success/<int:order_id>")
     def order_success(order_id):
         order = db.get_or_404(Order, order_id)
