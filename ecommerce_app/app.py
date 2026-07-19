@@ -339,13 +339,16 @@ def create_app(test_config=None):
         ).strip()
 
         if function_url:
-            confirmation_message = (
-                serverless.get_order_confirmation(
-                    function_url=function_url,
-                    order_id=order.id,
-                    customer_name=order.customer_name,
+            try:
+                confirmation_message = (
+                    serverless.get_order_confirmation(
+                        function_url=function_url,
+                        order_id=order.id,
+                        customer_name=order.customer_name,
+                    )
                 )
-            )
+            except OSError:
+                pass
 
         return render_template(
             "order_success.html",

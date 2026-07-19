@@ -277,3 +277,40 @@ def test_order_success_displays_serverless_confirmation(
     with app.app_context():
         Order.query.delete()
         db.session.commit()
+
+
+def test_order_success_falls_back_when_serverless_fails(
+    monkeypatch,
+):
+    app = create_app({
+        "TESTING": True,
+        "DIGITALOCEAN_FUNCTION_URL": (
+            "https://example.com/function"
+        ),
+    })
+    order_id = create_database_order(app)
+
+    def failing_confirmation(
+        function_url,
+        order_id,
+        customer_name,
+    ):
+        raise OSError("Function unavailable")
+
+    monkeypatch.setattr(
+        "serverless.get_order_confirmation",
+        failing_confirmation,
+    )
+
+    client = app.test_client()
+    response = client.get(f"/order-success/{order_id}")
+
+    assert response.status_code == 200
+    assert (
+        f"Order #{order_id} has been received.".encode()
+        in response.data
+    )
+
+    with app.app_context():
+        Order.query.delete()
+        db.session.commit()
