@@ -296,6 +296,33 @@ def create_app(test_config=None):
             order=order,
         )
 
+    @app.post("/orders/<int:order_id>/status")
+    def update_order_status(order_id):
+        order = db.get_or_404(Order, order_id)
+
+        allowed_statuses = {
+            "Pending",
+            "Processing",
+            "Shipped",
+            "Completed",
+        }
+
+        new_status = request.form.get(
+            "status",
+            "",
+        ).strip()
+
+        if new_status in allowed_statuses:
+            order.status = new_status
+            db.session.commit()
+
+        return redirect(
+            url_for(
+                "order_detail",
+                order_id=order.id,
+            )
+        )
+
     @app.route("/order-success/<int:order_id>")
     def order_success(order_id):
         order = db.get_or_404(Order, order_id)

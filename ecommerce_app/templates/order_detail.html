@@ -6,6 +6,33 @@
 <section class="page-header">
     <h1>Order #{{ order.id }}</h1>
     <p>Status: {{ order.status }}</p>
+
+    <form
+        action="{{ url_for('update_order_status', order_id=order.id) }}"
+        method="post"
+    >
+        <label for="status">Update Status</label>
+
+        <select id="status" name="status">
+            {% for status in [
+                "Pending",
+                "Processing",
+                "Shipped",
+                "Completed"
+            ] %}
+                <option
+                    value="{{ status }}"
+                    {% if order.status == status %}selected{% endif %}
+                >
+                    {{ status }}
+                </option>
+            {% endfor %}
+        </select>
+
+        <button type="submit">
+            Update Status
+        </button>
+    </form>
 </section>
 
 <section class="order-card">

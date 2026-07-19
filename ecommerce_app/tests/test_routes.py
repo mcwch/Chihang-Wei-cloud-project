@@ -162,3 +162,26 @@ def test_order_detail_page_displays_customer_and_items():
     assert b"Cloud Mouse" in response.data
     assert b"Quantity: 2" in response.data
     assert b"$39.99" in response.data
+
+
+def test_update_order_status():
+    app = create_app({"TESTING": True})
+    order_id = create_database_order(app)
+
+    client = app.test_client()
+    response = client.post(
+        f"/orders/{order_id}/status",
+        data={"status": "Shipped"},
+        follow_redirects=True,
+    )
+
+    assert response.status_code == 200
+
+    with app.app_context():
+        order = db.session.get(Order, order_id)
+        assert order.status == "Shipped"
+
+        Order.query.delete()
+        db.session.commit()
+
+    assert b"Shipped" in response.data
