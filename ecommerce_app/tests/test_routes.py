@@ -211,3 +211,24 @@ def test_navigation_contains_orders_link():
     assert response.status_code == 200
     assert b"Orders" in response.data
     assert b'href="/orders"' in response.data
+
+
+def test_order_success_uses_local_confirmation_without_function_url():
+    app = create_app({
+        "TESTING": True,
+        "DIGITALOCEAN_FUNCTION_URL": "",
+    })
+    order_id = create_database_order(app)
+
+    client = app.test_client()
+    response = client.get(f"/order-success/{order_id}")
+
+    assert response.status_code == 200
+    assert (
+        f"Order #{order_id} has been received.".encode()
+        in response.data
+    )
+
+    with app.app_context():
+        Order.query.delete()
+        db.session.commit()

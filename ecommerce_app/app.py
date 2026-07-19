@@ -327,9 +327,14 @@ def create_app(test_config=None):
     def order_success(order_id):
         order = db.get_or_404(Order, order_id)
 
+        confirmation_message = (
+            f"Order #{order.id} has been received."
+        )
+
         return render_template(
             "order_success.html",
             order=order,
+            confirmation_message=confirmation_message,
         )
 
     return app
