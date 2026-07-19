@@ -276,6 +276,17 @@ def create_app(test_config=None):
             error_message=error_message,
         )
 
+    @app.route("/orders")
+    def orders():
+        all_orders = Order.query.order_by(
+            Order.created_at.desc()
+        ).all()
+
+        return render_template(
+            "orders.html",
+            orders=all_orders,
+        )
+
     @app.route("/order-success/<int:order_id>")
     def order_success(order_id):
         order = db.get_or_404(Order, order_id)

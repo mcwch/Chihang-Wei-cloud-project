@@ -1,7 +1,7 @@
 ﻿from decimal import Decimal
 
 from app import create_app
-from models import Product, db
+from models import Order, OrderItem, Product, db
 
 
 def create_database_product(app):
@@ -58,3 +58,39 @@ def test_missing_product_returns_404():
     response = client.get("/product/999999")
 
     assert response.status_code == 404
+
+
+def create_database_order(app):
+    with app.app_context():
+        db.create_all()
+
+        OrderItem.query.delete()
+        Order.query.delete()
+        db.session.commit()
+
+        order = Order(
+            customer_name="Michael",
+            email="michael@example.com",
+            address="Toronto, Ontario",
+            total_price=Decimal("89.99"),
+            status="Pending",
+        )
+
+        db.session.add(order)
+        db.session.commit()
+
+        return order.id
+
+
+def test_orders_page_displays_order_information():
+    app = create_app({"TESTING": True})
+    order_id = create_database_order(app)
+
+    client = app.test_client()
+    response = client.get("/orders")
+
+    assert response.status_code == 200
+    assert f"Order #{order_id}".encode() in response.data
+    assert b"Michael" in response.data
+    assert b"$89.99" in response.data
+    assert b"Pending" in response.data
