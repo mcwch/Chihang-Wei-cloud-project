@@ -185,3 +185,29 @@ def test_update_order_status():
         db.session.commit()
 
     assert b"Shipped" in response.data
+
+
+def test_orders_page_links_to_order_detail():
+    app = create_app({"TESTING": True})
+    order_id = create_database_order(app)
+
+    client = app.test_client()
+    response = client.get("/orders")
+
+    assert response.status_code == 200
+    assert f'/orders/{order_id}'.encode() in response.data
+
+    with app.app_context():
+        Order.query.delete()
+        db.session.commit()
+
+
+def test_navigation_contains_orders_link():
+    app = create_app({"TESTING": True})
+    client = app.test_client()
+
+    response = client.get("/")
+
+    assert response.status_code == 200
+    assert b"Orders" in response.data
+    assert b'href="/orders"' in response.data

@@ -12,7 +12,11 @@
     <div class="order-list">
         {% for order in orders %}
             <article class="order-card">
-                <h2>Order #{{ order.id }}</h2>
+                <h2>
+                    <a href="{{ url_for('order_detail', order_id=order.id) }}">
+                        Order #{{ order.id }}
+                    </a>
+                </h2>
 
                 <p>
                     <strong>Customer:</strong>
