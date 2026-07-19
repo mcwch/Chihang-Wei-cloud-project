@@ -1,4 +1,6 @@
-﻿from decimal import Decimal
+from decimal import Decimal
+
+import serverless
 
 from flask import (
     Flask,
@@ -276,13 +278,82 @@ def create_app(test_config=None):
             error_message=error_message,
         )
 
+    @app.route("/orders")
+    def orders():
+        all_orders = Order.query.order_by(
+            Order.created_at.desc()
+        ).all()
+
+        return render_template(
+            "orders.html",
+            orders=all_orders,
+        )
+
+    @app.route("/orders/<int:order_id>")
+    def order_detail(order_id):
+        order = db.get_or_404(Order, order_id)
+
+        return render_template(
+            "order_detail.html",
+            order=order,
+        )
+
+    @app.post("/orders/<int:order_id>/status")
+    def update_order_status(order_id):
+        order = db.get_or_404(Order, order_id)
+
+        allowed_statuses = {
+            "Pending",
+            "Processing",
+            "Shipped",
+            "Completed",
+        }
+
+        new_status = request.form.get(
+            "status",
+            "",
+        ).strip()
+
+        if new_status in allowed_statuses:
+            order.status = new_status
+            db.session.commit()
+
+        return redirect(
+            url_for(
+                "order_detail",
+                order_id=order.id,
+            )
+        )
+
     @app.route("/order-success/<int:order_id>")
     def order_success(order_id):
         order = db.get_or_404(Order, order_id)
 
+        confirmation_message = (
+            f"Order #{order.id} has been received."
+        )
+
+        function_url = app.config.get(
+            "DIGITALOCEAN_FUNCTION_URL",
+            "",
+        ).strip()
+
+        if function_url:
+            try:
+                confirmation_message = (
+                    serverless.get_order_confirmation(
+                        function_url=function_url,
+                        order_id=order.id,
+                        customer_name=order.customer_name,
+                    )
+                )
+            except OSError:
+                pass
+
         return render_template(
             "order_success.html",
             order=order,
+            confirmation_message=confirmation_message,
         )
 
     return app

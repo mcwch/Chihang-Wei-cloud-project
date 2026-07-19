@@ -1,4 +1,4 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
 
 {% block title %}Order Confirmed | Simple Ecommerce Store{% endblock %}
 
@@ -10,6 +10,10 @@
         <p class="eyebrow">Order Confirmed</p>
 
         <h1>Thank you, {{ order.customer_name }}!</h1>
+
+        <p class="serverless-message">
+            {{ confirmation_message }}
+        </p>
 
         <p>
             Your order has been successfully stored in the

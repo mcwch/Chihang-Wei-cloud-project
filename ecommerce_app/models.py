@@ -43,6 +43,12 @@ class Order(db.Model):
         default=lambda: datetime.now(timezone.utc),
     )
 
+    status = db.Column(
+        db.String(50),
+        nullable=False,
+        default="Pending",
+    )
+
     items = db.relationship(
         "OrderItem",
         back_populates="order",

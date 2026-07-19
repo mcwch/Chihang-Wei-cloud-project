@@ -16,6 +16,7 @@ def test_order_model_has_required_columns():
         "address",
         "total_price",
         "created_at",
+        "status",
     }
 
 
