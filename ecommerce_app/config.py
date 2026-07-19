@@ -34,4 +34,9 @@ class Config:
         f"@{DB_HOST}:{DB_PORT}/{DB_TEST_NAME}"
     )
 
+    DIGITALOCEAN_FUNCTION_URL = os.getenv(
+        "DIGITALOCEAN_FUNCTION_URL",
+        "",
+    )
+
     SQLALCHEMY_TRACK_MODIFICATIONS = False
