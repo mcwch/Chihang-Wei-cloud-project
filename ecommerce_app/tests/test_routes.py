@@ -1,4 +1,4 @@
-﻿from decimal import Decimal
+from decimal import Decimal
 
 from app import create_app
 from models import Order, OrderItem, Product, db
@@ -216,7 +216,7 @@ def test_navigation_contains_orders_link():
 def test_order_success_uses_local_confirmation_without_function_url():
     app = create_app({
         "TESTING": True,
-        "DIGITALOCEAN_FUNCTION_URL": "",
+        "SERVERLESS_FUNCTION_URL": "",
     })
     order_id = create_database_order(app)
 
@@ -239,7 +239,7 @@ def test_order_success_displays_serverless_confirmation(
 ):
     app = create_app({
         "TESTING": True,
-        "DIGITALOCEAN_FUNCTION_URL": (
+        "SERVERLESS_FUNCTION_URL": (
             "https://example.com/function"
         ),
     })
@@ -284,7 +284,7 @@ def test_order_success_falls_back_when_serverless_fails(
 ):
     app = create_app({
         "TESTING": True,
-        "DIGITALOCEAN_FUNCTION_URL": (
+        "SERVERLESS_FUNCTION_URL": (
             "https://example.com/function"
         ),
     })
