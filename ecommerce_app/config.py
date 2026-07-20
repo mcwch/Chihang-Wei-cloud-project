@@ -1,4 +1,4 @@
-﻿import os
+import os
 from urllib.parse import quote_plus
 
 from dotenv import load_dotenv
@@ -34,8 +34,8 @@ class Config:
         f"@{DB_HOST}:{DB_PORT}/{DB_TEST_NAME}"
     )
 
-    DIGITALOCEAN_FUNCTION_URL = os.getenv(
-        "DIGITALOCEAN_FUNCTION_URL",
+    SERVERLESS_FUNCTION_URL = os.getenv(
+        "SERVERLESS_FUNCTION_URL",
         "",
     )
 

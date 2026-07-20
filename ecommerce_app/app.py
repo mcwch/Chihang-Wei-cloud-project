@@ -334,7 +334,7 @@ def create_app(test_config=None):
         )
 
         function_url = app.config.get(
-            "DIGITALOCEAN_FUNCTION_URL",
+            "SERVERLESS_FUNCTION_URL",
             "",
         ).strip()
 
