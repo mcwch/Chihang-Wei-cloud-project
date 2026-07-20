@@ -19,6 +19,7 @@ def get_order_confirmation(
         data=payload,
         headers={
             "Content-Type": "application/json",
+            "User-Agent": "EcommerceApp/1.0",
         },
         method="POST",
     )
