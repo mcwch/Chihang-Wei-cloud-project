@@ -1,5 +1,6 @@
-﻿import json
+import json
 import threading
+from datetime import datetime, timezone
 from copy import deepcopy
 from pathlib import Path
 
@@ -105,3 +106,98 @@ class TargetRegistry:
             )
 
         return validated
+
+
+def default_health_request(url, timeout):
+    import requests
+
+    return requests.get(url, timeout=timeout)
+
+
+class HealthMonitor:
+    def __init__(
+        self,
+        registry,
+        request_get=None,
+        timeout=2.0,
+    ):
+        self.registry = registry
+        self.request_get = (
+            request_get or default_health_request
+        )
+        self.timeout = timeout
+        self._lock = threading.Lock()
+        self._states = []
+
+    def snapshot(self):
+        with self._lock:
+            return deepcopy(self._states)
+
+    def check_once(self):
+        self.registry.reload()
+        targets = self.registry.snapshot()
+        states = []
+
+        for target in targets:
+            health_url = f'{target["url"]}/health'
+            checked_at = datetime.now(
+                timezone.utc
+            ).isoformat()
+
+            try:
+                response = self.request_get(
+                    health_url,
+                    timeout=self.timeout,
+                )
+
+                if response.status_code == 200:
+                    healthy = True
+                    error = None
+                else:
+                    healthy = False
+                    error = (
+                        "Health check returned HTTP "
+                        f"{response.status_code}."
+                    )
+
+            except Exception as exc:
+                healthy = False
+                error = str(exc)
+
+            states.append(
+                {
+                    "name": target["name"],
+                    "url": target["url"],
+                    "healthy": healthy,
+                    "last_checked": checked_at,
+                    "error": error,
+                }
+            )
+
+        with self._lock:
+            self._states = states
+            return deepcopy(self._states)
+
+
+class RoundRobinSelector:
+    def __init__(self):
+        self._index = 0
+        self._lock = threading.Lock()
+
+    def choose(self, states):
+        healthy_targets = [
+            state
+            for state in states
+            if state.get("healthy") is True
+        ]
+
+        if not healthy_targets:
+            return None
+
+        with self._lock:
+            selected = healthy_targets[
+                self._index % len(healthy_targets)
+            ]
+            self._index += 1
+
+        return deepcopy(selected)

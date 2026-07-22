@@ -2,7 +2,7 @@
 
 import pytest
 
-from load_balancer import TargetRegistry
+from load_balancer import HealthMonitor, RoundRobinSelector, TargetRegistry
 
 
 def write_targets(path, targets):
@@ -103,3 +103,83 @@ def test_invalid_target_shape_is_rejected(
 
     assert registry.snapshot() == []
     assert registry.config_error is not None
+
+
+
+class FakeHealthResponse:
+    def __init__(self, status_code):
+        self.status_code = status_code
+
+
+def test_health_monitor_marks_target_health(tmp_path):
+    config_path = tmp_path / "targets.json"
+
+    write_targets(
+        config_path,
+        [
+            {
+                "name": "Instance 1",
+                "url": "http://127.0.0.1:5000",
+            },
+            {
+                "name": "Instance 2",
+                "url": "http://127.0.0.1:5001",
+            },
+        ],
+    )
+
+    def fake_get(url, timeout):
+        if "5000" in url:
+            return FakeHealthResponse(200)
+        return FakeHealthResponse(503)
+
+    monitor = HealthMonitor(
+        TargetRegistry(config_path),
+        request_get=fake_get,
+        timeout=1.5,
+    )
+
+    states = monitor.check_once()
+
+    assert states[0]["healthy"] is True
+    assert states[0]["error"] is None
+    assert states[0]["last_checked"] is not None
+
+    assert states[1]["healthy"] is False
+    assert "503" in states[1]["error"]
+
+
+def test_round_robin_uses_only_healthy_targets():
+    selector = RoundRobinSelector()
+
+    states = [
+        {
+            "name": "Instance 1",
+            "url": "http://127.0.0.1:5000",
+            "healthy": True,
+        },
+        {
+            "name": "Instance 2",
+            "url": "http://127.0.0.1:5001",
+            "healthy": False,
+        },
+        {
+            "name": "Instance 3",
+            "url": "http://127.0.0.1:5002",
+            "healthy": True,
+        },
+    ]
+
+    selected = [
+        selector.choose(states)["name"]
+        for _ in range(4)
+    ]
+
+    assert selected == [
+        "Instance 1",
+        "Instance 3",
+        "Instance 1",
+        "Instance 3",
+    ]
+
+    assert selector.choose([]) is None
