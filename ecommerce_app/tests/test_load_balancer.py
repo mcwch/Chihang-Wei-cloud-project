@@ -1,4 +1,6 @@
-﻿import json
+import json
+import threading
+import time
 
 import pytest
 
@@ -183,3 +185,40 @@ def test_round_robin_uses_only_healthy_targets():
     ]
 
     assert selector.choose([]) is None
+
+
+def test_health_monitor_runs_in_background_and_stops(
+    tmp_path,
+):
+    config_path = tmp_path / "targets.json"
+    write_targets(config_path, [])
+
+    monitor = HealthMonitor(
+        TargetRegistry(config_path),
+        request_get=lambda url, timeout: None,
+        interval=0.01,
+    )
+
+    check_happened = threading.Event()
+    calls = []
+
+    def fake_check_once():
+        calls.append("checked")
+        check_happened.set()
+        return []
+
+    monitor.check_once = fake_check_once
+
+    monitor.start()
+
+    assert check_happened.wait(timeout=0.5)
+    assert monitor.is_running is True
+
+    monitor.stop()
+
+    assert monitor.is_running is False
+
+    calls_after_stop = len(calls)
+    time.sleep(0.03)
+
+    assert len(calls) == calls_after_stop

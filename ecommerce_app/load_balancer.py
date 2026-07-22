@@ -120,14 +120,24 @@ class HealthMonitor:
         registry,
         request_get=None,
         timeout=2.0,
+        interval=5.0,
     ):
+        if interval <= 0:
+            raise ValueError(
+                "Health-check interval must be positive."
+            )
+
         self.registry = registry
         self.request_get = (
             request_get or default_health_request
         )
         self.timeout = timeout
+        self.interval = interval
+
         self._lock = threading.Lock()
         self._states = []
+        self._stop_event = threading.Event()
+        self._thread = None
 
     def snapshot(self):
         with self._lock:
@@ -177,6 +187,56 @@ class HealthMonitor:
         with self._lock:
             self._states = states
             return deepcopy(self._states)
+
+
+    @property
+    def is_running(self):
+        with self._lock:
+            return (
+                self._thread is not None
+                and self._thread.is_alive()
+            )
+
+    def start(self):
+        with self._lock:
+            if (
+                self._thread is not None
+                and self._thread.is_alive()
+            ):
+                return
+
+            self._stop_event.clear()
+
+            thread = threading.Thread(
+                target=self._run,
+                name="load-balancer-health-monitor",
+                daemon=True,
+            )
+            self._thread = thread
+
+        thread.start()
+
+    def stop(self):
+        with self._lock:
+            thread = self._thread
+
+            if thread is None:
+                return
+
+            self._stop_event.set()
+
+        thread.join()
+
+        with self._lock:
+            if self._thread is thread:
+                self._thread = None
+
+    def _run(self):
+        while not self._stop_event.is_set():
+            self.check_once()
+
+            if self._stop_event.wait(self.interval):
+                break
 
 
 class RoundRobinSelector:
