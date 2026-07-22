@@ -66,6 +66,11 @@ def create_app(test_config=None):
     test_config = test_config or {}
     app.config.update(test_config)
 
+    app.config.setdefault(
+        "INSTANCE_NAME",
+        "Standalone Instance",
+    )
+
     if (
         app.config.get("TESTING")
         and "SQLALCHEMY_DATABASE_URI" not in test_config
@@ -75,6 +80,20 @@ def create_app(test_config=None):
         )
 
     db.init_app(app)
+
+    @app.get("/health")
+    def health():
+        return {
+            "status": "healthy",
+            "instance": app.config["INSTANCE_NAME"],
+        }
+
+    @app.after_request
+    def add_instance_header(response):
+        response.headers["X-App-Instance"] = (
+            app.config["INSTANCE_NAME"]
+        )
+        return response
 
     @app.route("/")
     def home():
