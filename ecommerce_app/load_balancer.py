@@ -351,11 +351,10 @@ def create_load_balancer_app(
         )
 
     def proxy_request(path):
-        target = selector.choose(
-            monitor.snapshot()
-        )
+        states = monitor.snapshot()
+        first_target = selector.choose(states)
 
-        if target is None:
+        if first_target is None:
             return (
                 jsonify(
                     {
@@ -368,45 +367,75 @@ def create_load_balancer_app(
                 503,
             )
 
-        backend_url = (
-            f'{target["url"]}/'
-            f'{path.lstrip("/")}'
+        healthy_targets = [
+            state
+            for state in states
+            if state.get("healthy") is True
+        ]
+
+        first_index = next(
+            index
+            for index, target in enumerate(
+                healthy_targets
+            )
+            if target["name"] == first_target["name"]
         )
 
-        try:
-            upstream_response = session.request(
-                method=request.method,
-                url=backend_url,
-                headers=_forward_request_headers(),
-                params=request.args.to_dict(
-                    flat=False
-                ),
-                data=request.get_data(),
-                allow_redirects=False,
-                timeout=10.0,
+        candidates = (
+            healthy_targets[first_index:]
+            + healthy_targets[:first_index]
+        )
+
+        connection_errors = []
+
+        for target in candidates:
+            backend_url = (
+                f'{target["url"]}/'
+                f'{path.lstrip("/")}'
             )
-        except Exception as error:
-            return (
-                jsonify(
+
+            try:
+                upstream_response = session.request(
+                    method=request.method,
+                    url=backend_url,
+                    headers=_forward_request_headers(),
+                    params=request.args.to_dict(
+                        flat=False
+                    ),
+                    data=request.get_data(),
+                    allow_redirects=False,
+                    timeout=10.0,
+                )
+            except Exception as error:
+                connection_errors.append(
                     {
-                        "error": (
-                            "The selected backend instance "
-                            "could not be reached."
-                        ),
                         "backend": target["name"],
                         "details": str(error),
                     }
+                )
+                continue
+
+            return Response(
+                upstream_response.content,
+                status=upstream_response.status_code,
+                headers=_forward_response_headers(
+                    upstream_response.headers
                 ),
-                502,
             )
 
-        return Response(
-            upstream_response.content,
-            status=upstream_response.status_code,
-            headers=_forward_response_headers(
-                upstream_response.headers
+        return (
+            jsonify(
+                {
+                    "error": (
+                        "All healthy backend instances "
+                        "could not be reached."
+                    ),
+                    "attempts": connection_errors,
+                }
             ),
+            502,
         )
+
 
     app.add_url_rule(
         "/",

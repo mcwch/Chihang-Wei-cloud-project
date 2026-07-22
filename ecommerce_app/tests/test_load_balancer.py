@@ -626,3 +626,196 @@ def test_status_page_displays_configuration_error(
     assert "Configuration error" in html
     assert "Instance 1" in html
     assert proxy_session.proxy_calls == []
+
+
+class FailoverProxySession:
+    def __init__(self, outcomes):
+        self.outcomes = {
+            url: list(values)
+            for url, values in outcomes.items()
+        }
+        self.proxy_calls = []
+
+    def get(self, url, timeout):
+        return FakeHealthResponse(200)
+
+    def request(self, method, url, **kwargs):
+        self.proxy_calls.append(
+            {
+                "method": method,
+                "url": url,
+                **kwargs,
+            }
+        )
+
+        outcome = self.outcomes[url].pop(0)
+
+        if isinstance(outcome, Exception):
+            raise outcome
+
+        return outcome
+
+
+def test_proxy_tries_another_healthy_target_after_connection_failure(
+    tmp_path,
+):
+    config_path = tmp_path / "targets.json"
+
+    write_targets(
+        config_path,
+        [
+            {
+                "name": "Instance 1",
+                "url": "http://127.0.0.1:5000",
+            },
+            {
+                "name": "Instance 2",
+                "url": "http://127.0.0.1:5001",
+            },
+        ],
+    )
+
+    proxy_session = FailoverProxySession(
+        {
+            "http://127.0.0.1:5000/products": [
+                ConnectionError("Instance 1 unavailable")
+            ],
+            "http://127.0.0.1:5001/products": [
+                FakeProxyResponse(
+                    content=b"Instance 2",
+                    status_code=200,
+                    headers={
+                        "Content-Type": "text/plain",
+                        "X-App-Instance": "Instance 2",
+                    },
+                )
+            ],
+        }
+    )
+
+    app = create_load_balancer_app(
+        config_path=config_path,
+        request_session=proxy_session,
+        start_monitor=False,
+    )
+
+    app.extensions["health_monitor"].check_once()
+    client = app.test_client()
+
+    response = client.get("/products")
+
+    assert response.status_code == 200
+    assert response.get_data(as_text=True) == "Instance 2"
+
+    assert [
+        call["url"]
+        for call in proxy_session.proxy_calls
+    ] == [
+        "http://127.0.0.1:5000/products",
+        "http://127.0.0.1:5001/products",
+    ]
+
+
+def test_proxy_does_not_retry_after_http_response(
+    tmp_path,
+):
+    config_path = tmp_path / "targets.json"
+
+    write_targets(
+        config_path,
+        [
+            {
+                "name": "Instance 1",
+                "url": "http://127.0.0.1:5000",
+            },
+            {
+                "name": "Instance 2",
+                "url": "http://127.0.0.1:5001",
+            },
+        ],
+    )
+
+    proxy_session = FailoverProxySession(
+        {
+            "http://127.0.0.1:5000/checkout": [
+                FakeProxyResponse(
+                    content=b"backend error",
+                    status_code=500,
+                    headers={
+                        "Content-Type": "text/plain",
+                    },
+                )
+            ],
+            "http://127.0.0.1:5001/checkout": [
+                FakeProxyResponse(
+                    content=b"must not be called",
+                    status_code=200,
+                )
+            ],
+        }
+    )
+
+    app = create_load_balancer_app(
+        config_path=config_path,
+        request_session=proxy_session,
+        start_monitor=False,
+    )
+
+    app.extensions["health_monitor"].check_once()
+    client = app.test_client()
+
+    response = client.post("/checkout")
+
+    assert response.status_code == 500
+    assert len(proxy_session.proxy_calls) == 1
+    assert proxy_session.proxy_calls[0]["url"] == (
+        "http://127.0.0.1:5000/checkout"
+    )
+
+
+def test_proxy_returns_502_only_after_all_targets_fail(
+    tmp_path,
+):
+    config_path = tmp_path / "targets.json"
+
+    write_targets(
+        config_path,
+        [
+            {
+                "name": "Instance 1",
+                "url": "http://127.0.0.1:5000",
+            },
+            {
+                "name": "Instance 2",
+                "url": "http://127.0.0.1:5001",
+            },
+        ],
+    )
+
+    proxy_session = FailoverProxySession(
+        {
+            "http://127.0.0.1:5000/products": [
+                ConnectionError("Instance 1 unavailable")
+            ],
+            "http://127.0.0.1:5001/products": [
+                ConnectionError("Instance 2 unavailable")
+            ],
+        }
+    )
+
+    app = create_load_balancer_app(
+        config_path=config_path,
+        request_session=proxy_session,
+        start_monitor=False,
+    )
+
+    app.extensions["health_monitor"].check_once()
+    client = app.test_client()
+
+    response = client.get("/products")
+
+    assert response.status_code == 502
+    assert len(proxy_session.proxy_calls) == 2
+    assert response.get_json()["error"] == (
+        "All healthy backend instances could not be reached."
+    )
