@@ -1,10 +1,10 @@
-import json
+﻿import json
 import threading
 import time
 
 import pytest
 
-from load_balancer import HealthMonitor, RoundRobinSelector, TargetRegistry
+from load_balancer import HealthMonitor, RoundRobinSelector, TargetRegistry, create_load_balancer_app
 
 
 def write_targets(path, targets):
@@ -222,3 +222,147 @@ def test_health_monitor_runs_in_background_and_stops(
     time.sleep(0.03)
 
     assert len(calls) == calls_after_stop
+
+
+
+class FakeProxyResponse:
+    def __init__(
+        self,
+        content,
+        status_code=200,
+        headers=None,
+    ):
+        self.content = content
+        self.status_code = status_code
+        self.headers = headers or {
+            "Content-Type": "text/plain",
+        }
+
+
+class FakeProxySession:
+    def __init__(self, healthy=True):
+        self.healthy = healthy
+        self.proxy_calls = []
+
+    def get(self, url, timeout):
+        status_code = 200 if self.healthy else 503
+        return FakeHealthResponse(status_code)
+
+    def request(self, method, url, **kwargs):
+        self.proxy_calls.append(
+            {
+                "method": method,
+                "url": url,
+                **kwargs,
+            }
+        )
+
+        if "5000" in url:
+            instance = "Instance 1"
+        else:
+            instance = "Instance 2"
+
+        return FakeProxyResponse(
+            content=instance.encode("utf-8"),
+            headers={
+                "Content-Type": "text/plain",
+                "X-App-Instance": instance,
+            },
+        )
+
+
+def test_proxy_round_robins_between_healthy_targets(
+    tmp_path,
+):
+    config_path = tmp_path / "targets.json"
+
+    write_targets(
+        config_path,
+        [
+            {
+                "name": "Instance 1",
+                "url": "http://127.0.0.1:5000",
+            },
+            {
+                "name": "Instance 2",
+                "url": "http://127.0.0.1:5001",
+            },
+        ],
+    )
+
+    proxy_session = FakeProxySession()
+
+    app = create_load_balancer_app(
+        config_path=config_path,
+        request_session=proxy_session,
+        start_monitor=False,
+    )
+
+    app.extensions["health_monitor"].check_once()
+    client = app.test_client()
+
+    first_response = client.get("/products")
+    second_response = client.get("/products")
+
+    assert first_response.status_code == 200
+    assert first_response.get_data(as_text=True) == (
+        "Instance 1"
+    )
+    assert first_response.headers["X-App-Instance"] == (
+        "Instance 1"
+    )
+
+    assert second_response.status_code == 200
+    assert second_response.get_data(as_text=True) == (
+        "Instance 2"
+    )
+    assert second_response.headers["X-App-Instance"] == (
+        "Instance 2"
+    )
+
+    assert [
+        call["url"]
+        for call in proxy_session.proxy_calls
+    ] == [
+        "http://127.0.0.1:5000/products",
+        "http://127.0.0.1:5001/products",
+    ]
+
+
+def test_proxy_returns_503_when_no_target_is_healthy(
+    tmp_path,
+):
+    config_path = tmp_path / "targets.json"
+
+    write_targets(
+        config_path,
+        [
+            {
+                "name": "Instance 1",
+                "url": "http://127.0.0.1:5000",
+            }
+        ],
+    )
+
+    proxy_session = FakeProxySession(
+        healthy=False,
+    )
+
+    app = create_load_balancer_app(
+        config_path=config_path,
+        request_session=proxy_session,
+        start_monitor=False,
+    )
+
+    app.extensions["health_monitor"].check_once()
+    client = app.test_client()
+
+    response = client.get("/")
+
+    assert response.status_code == 503
+    assert response.get_json() == {
+        "error": (
+            "No healthy backend instances are available."
+        )
+    }
+    assert proxy_session.proxy_calls == []

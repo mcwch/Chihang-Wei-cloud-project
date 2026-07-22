@@ -4,6 +4,8 @@ from datetime import datetime, timezone
 from copy import deepcopy
 from pathlib import Path
 
+from flask import Flask, Response, jsonify, request
+
 
 class TargetRegistry:
     def __init__(self, config_path):
@@ -261,3 +263,170 @@ class RoundRobinSelector:
             self._index += 1
 
         return deepcopy(selected)
+
+
+HOP_BY_HOP_HEADERS = {
+    "connection",
+    "content-encoding",
+    "content-length",
+    "keep-alive",
+    "proxy-authenticate",
+    "proxy-authorization",
+    "te",
+    "trailer",
+    "transfer-encoding",
+    "upgrade",
+}
+
+
+def _default_request_session():
+    import requests
+
+    return requests.Session()
+
+
+def _forward_request_headers():
+    return {
+        name: value
+        for name, value in request.headers.items()
+        if name.lower() not in {
+            "host",
+            "content-length",
+        }
+    }
+
+
+def _forward_response_headers(headers):
+    return [
+        (name, value)
+        for name, value in headers.items()
+        if name.lower() not in HOP_BY_HOP_HEADERS
+    ]
+
+
+def create_load_balancer_app(
+    config_path=None,
+    request_session=None,
+    start_monitor=True,
+):
+    app = Flask(
+        __name__,
+        static_folder=None,
+    )
+
+    resolved_config_path = (
+        Path(config_path)
+        if config_path is not None
+        else Path(__file__).with_name("targets.json")
+    )
+
+    session = (
+        request_session
+        if request_session is not None
+        else _default_request_session()
+    )
+
+    registry = TargetRegistry(resolved_config_path)
+    monitor = HealthMonitor(
+        registry,
+        request_get=session.get,
+        interval=5.0,
+    )
+    selector = RoundRobinSelector()
+
+    app.extensions["target_registry"] = registry
+    app.extensions["health_monitor"] = monitor
+    app.extensions["round_robin_selector"] = selector
+    app.extensions["proxy_session"] = session
+
+    if start_monitor:
+        monitor.start()
+
+    def proxy_request(path):
+        target = selector.choose(
+            monitor.snapshot()
+        )
+
+        if target is None:
+            return (
+                jsonify(
+                    {
+                        "error": (
+                            "No healthy backend instances "
+                            "are available."
+                        )
+                    }
+                ),
+                503,
+            )
+
+        backend_url = (
+            f'{target["url"]}/'
+            f'{path.lstrip("/")}'
+        )
+
+        try:
+            upstream_response = session.request(
+                method=request.method,
+                url=backend_url,
+                headers=_forward_request_headers(),
+                params=request.args.to_dict(
+                    flat=False
+                ),
+                data=request.get_data(),
+                allow_redirects=False,
+                timeout=10.0,
+            )
+        except Exception as error:
+            return (
+                jsonify(
+                    {
+                        "error": (
+                            "The selected backend instance "
+                            "could not be reached."
+                        ),
+                        "backend": target["name"],
+                        "details": str(error),
+                    }
+                ),
+                502,
+            )
+
+        return Response(
+            upstream_response.content,
+            status=upstream_response.status_code,
+            headers=_forward_response_headers(
+                upstream_response.headers
+            ),
+        )
+
+    app.add_url_rule(
+        "/",
+        defaults={"path": ""},
+        endpoint="proxy_root",
+        view_func=proxy_request,
+        methods=["GET"],
+    )
+
+    app.add_url_rule(
+        "/<path:path>",
+        endpoint="proxy_path",
+        view_func=proxy_request,
+        methods=["GET"],
+    )
+
+    return app
+
+
+def main():
+    app = create_load_balancer_app()
+    app.run(
+        host="0.0.0.0",
+        port=8000,
+        debug=False,
+        use_reloader=False,
+    )
+
+
+if __name__ == "__main__":
+    main()
