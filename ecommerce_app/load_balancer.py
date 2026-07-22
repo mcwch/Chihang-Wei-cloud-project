@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from copy import deepcopy
 from pathlib import Path
 
-from flask import Flask, Response, jsonify, request
+from flask import Flask, Response, jsonify, render_template, request
 
 
 class TargetRegistry:
@@ -341,6 +341,14 @@ def create_load_balancer_app(
 
     if start_monitor:
         monitor.start()
+
+    @app.get("/load-balancer-status")
+    def load_balancer_status():
+        return render_template(
+            "load_balancer_status.html",
+            states=monitor.snapshot(),
+            config_error=registry.config_error,
+        )
 
     def proxy_request(path):
         target = selector.choose(

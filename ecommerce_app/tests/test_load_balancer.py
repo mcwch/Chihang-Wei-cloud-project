@@ -515,3 +515,114 @@ def test_proxy_preserves_redirect_and_set_cookie(
     assert "checkout=done" in (
         response.headers["Set-Cookie"]
     )
+
+
+class StatusProxySession:
+    def __init__(self):
+        self.proxy_calls = []
+
+    def get(self, url, timeout):
+        if "5000" in url:
+            return FakeHealthResponse(200)
+
+        return FakeHealthResponse(503)
+
+    def request(self, method, url, **kwargs):
+        self.proxy_calls.append(
+            {
+                "method": method,
+                "url": url,
+                **kwargs,
+            }
+        )
+        raise AssertionError(
+            "Status page must not be forwarded."
+        )
+
+
+def test_status_page_displays_backend_health(
+    tmp_path,
+):
+    config_path = tmp_path / "targets.json"
+
+    write_targets(
+        config_path,
+        [
+            {
+                "name": "Instance 1",
+                "url": "http://127.0.0.1:5000",
+            },
+            {
+                "name": "Instance 2",
+                "url": "http://127.0.0.1:5001",
+            },
+        ],
+    )
+
+    proxy_session = StatusProxySession()
+
+    app = create_load_balancer_app(
+        config_path=config_path,
+        request_session=proxy_session,
+        start_monitor=False,
+    )
+
+    app.extensions["health_monitor"].check_once()
+    client = app.test_client()
+
+    response = client.get("/load-balancer-status")
+    html = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert "Load Balancer Status" in html
+    assert "Instance 1" in html
+    assert "http://127.0.0.1:5000" in html
+    assert "Healthy" in html
+
+    assert "Instance 2" in html
+    assert "http://127.0.0.1:5001" in html
+    assert "Unhealthy" in html
+    assert "Health check returned HTTP 503." in html
+    assert "Last checked" in html
+
+    assert proxy_session.proxy_calls == []
+
+
+def test_status_page_displays_configuration_error(
+    tmp_path,
+):
+    config_path = tmp_path / "targets.json"
+
+    write_targets(
+        config_path,
+        [
+            {
+                "name": "Instance 1",
+                "url": "http://127.0.0.1:5000",
+            }
+        ],
+    )
+
+    proxy_session = StatusProxySession()
+
+    app = create_load_balancer_app(
+        config_path=config_path,
+        request_session=proxy_session,
+        start_monitor=False,
+    )
+
+    config_path.write_text(
+        "{invalid json",
+        encoding="utf-8",
+    )
+
+    app.extensions["health_monitor"].check_once()
+    client = app.test_client()
+
+    response = client.get("/load-balancer-status")
+    html = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert "Configuration error" in html
+    assert "Instance 1" in html
+    assert proxy_session.proxy_calls == []
