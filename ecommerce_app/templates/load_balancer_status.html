@@ -1,0 +1,149 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1"
+    >
+    <title>Load Balancer Status</title>
+
+    <style>
+        body {
+            margin: 0;
+            padding: 2rem;
+            font-family: Arial, sans-serif;
+            background: #f4f6f8;
+            color: #1f2933;
+        }
+
+        .container {
+            max-width: 960px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            margin-bottom: 0.5rem;
+        }
+
+        .summary {
+            margin-bottom: 1.5rem;
+            color: #52606d;
+        }
+
+        .config-error {
+            margin-bottom: 1.5rem;
+            padding: 1rem;
+            border: 1px solid #c62828;
+            border-radius: 8px;
+            background: #ffebee;
+        }
+
+        .target-card {
+            margin-bottom: 1rem;
+            padding: 1.25rem;
+            border: 1px solid #d9e2ec;
+            border-radius: 10px;
+            background: white;
+        }
+
+        .target-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .status {
+            padding: 0.3rem 0.7rem;
+            border-radius: 999px;
+            font-weight: bold;
+        }
+
+        .healthy {
+            background: #e8f5e9;
+            color: #1b5e20;
+        }
+
+        .unhealthy {
+            background: #ffebee;
+            color: #b71c1c;
+        }
+
+        .details {
+            margin-top: 0.8rem;
+            line-height: 1.6;
+        }
+
+        .error-text {
+            color: #b71c1c;
+        }
+
+        .empty {
+            padding: 1rem;
+            border-radius: 8px;
+            background: white;
+        }
+    </style>
+</head>
+
+<body>
+    <main class="container">
+        <h1>Load Balancer Status</h1>
+
+        <p class="summary">
+            Current backend health and configuration status.
+        </p>
+
+        {% if config_error %}
+            <section class="config-error">
+                <strong>Configuration error</strong>
+                <div>{{ config_error }}</div>
+            </section>
+        {% endif %}
+
+        {% if states %}
+            {% for state in states %}
+                <section class="target-card">
+                    <div class="target-header">
+                        <h2>{{ state["name"] }}</h2>
+
+                        {% if state["healthy"] %}
+                            <span class="status healthy">
+                                Healthy
+                            </span>
+                        {% else %}
+                            <span class="status unhealthy">
+                                Unhealthy
+                            </span>
+                        {% endif %}
+                    </div>
+
+                    <div class="details">
+                        <div>
+                            <strong>URL:</strong>
+                            {{ state["url"] }}
+                        </div>
+
+                        <div>
+                            <strong>Last checked:</strong>
+                            {{ state["last_checked"] }}
+                        </div>
+
+                        {% if state["error"] %}
+                            <div class="error-text">
+                                <strong>Error:</strong>
+                                {{ state["error"] }}
+                            </div>
+                        {% endif %}
+                    </div>
+                </section>
+            {% endfor %}
+        {% else %}
+            <p class="empty">
+                No backend targets are currently configured.
+            </p>
+        {% endif %}
+    </main>
+</body>
+</html>
