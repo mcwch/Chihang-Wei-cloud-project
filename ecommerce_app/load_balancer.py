@@ -405,14 +405,14 @@ def create_load_balancer_app(
         defaults={"path": ""},
         endpoint="proxy_root",
         view_func=proxy_request,
-        methods=["GET"],
+        methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     )
 
     app.add_url_rule(
         "/<path:path>",
         endpoint="proxy_path",
         view_func=proxy_request,
-        methods=["GET"],
+        methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     )
 
     return app

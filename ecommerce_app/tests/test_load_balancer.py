@@ -366,3 +366,152 @@ def test_proxy_returns_503_when_no_target_is_healthy(
         )
     }
     assert proxy_session.proxy_calls == []
+
+
+class RecordingProxySession:
+    def __init__(self, upstream_response):
+        self.upstream_response = upstream_response
+        self.proxy_calls = []
+
+    def get(self, url, timeout):
+        return FakeHealthResponse(200)
+
+    def request(self, method, url, **kwargs):
+        self.proxy_calls.append(
+            {
+                "method": method,
+                "url": url,
+                **kwargs,
+            }
+        )
+        return self.upstream_response
+
+
+def test_proxy_forwards_post_body_query_headers_and_cookie(
+    tmp_path,
+):
+    config_path = tmp_path / "targets.json"
+
+    write_targets(
+        config_path,
+        [
+            {
+                "name": "Instance 1",
+                "url": "http://127.0.0.1:5000",
+            }
+        ],
+    )
+
+    proxy_session = RecordingProxySession(
+        FakeProxyResponse(
+            content=b"cart updated",
+            status_code=200,
+            headers={
+                "Content-Type": "text/plain",
+                "X-App-Instance": "Instance 1",
+            },
+        )
+    )
+
+    app = create_load_balancer_app(
+        config_path=config_path,
+        request_session=proxy_session,
+        start_monitor=False,
+    )
+
+    app.extensions["health_monitor"].check_once()
+    client = app.test_client()
+    client.set_cookie("session", "cart-cookie")
+
+    response = client.post(
+        "/cart/add?source=home&item=1&item=2",
+        data={
+            "product_id": "10",
+            "quantity": "2",
+        },
+        headers={
+            "X-Test-Header": "forward-me",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.get_data(as_text=True) == (
+        "cart updated"
+    )
+
+    assert len(proxy_session.proxy_calls) == 1
+    call = proxy_session.proxy_calls[0]
+
+    assert call["method"] == "POST"
+    assert call["url"] == (
+        "http://127.0.0.1:5000/cart/add"
+    )
+    assert call["params"] == {
+        "source": ["home"],
+        "item": ["1", "2"],
+    }
+
+    body = call["data"].decode("utf-8")
+    assert "product_id=10" in body
+    assert "quantity=2" in body
+
+    assert call["headers"]["X-Test-Header"] == (
+        "forward-me"
+    )
+    assert "session=cart-cookie" in (
+        call["headers"]["Cookie"]
+    )
+    assert call["allow_redirects"] is False
+
+
+def test_proxy_preserves_redirect_and_set_cookie(
+    tmp_path,
+):
+    config_path = tmp_path / "targets.json"
+
+    write_targets(
+        config_path,
+        [
+            {
+                "name": "Instance 1",
+                "url": "http://127.0.0.1:5000",
+            }
+        ],
+    )
+
+    proxy_session = RecordingProxySession(
+        FakeProxyResponse(
+            content=b"",
+            status_code=302,
+            headers={
+                "Content-Type": "text/html",
+                "Location": "/order-success",
+                "Set-Cookie": (
+                    "checkout=done; Path=/; HttpOnly"
+                ),
+            },
+        )
+    )
+
+    app = create_load_balancer_app(
+        config_path=config_path,
+        request_session=proxy_session,
+        start_monitor=False,
+    )
+
+    app.extensions["health_monitor"].check_once()
+    client = app.test_client()
+
+    response = client.post(
+        "/checkout",
+        data={"customer_name": "Test User"},
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 302
+    assert response.headers["Location"] == (
+        "/order-success"
+    )
+    assert "checkout=done" in (
+        response.headers["Set-Cookie"]
+    )
