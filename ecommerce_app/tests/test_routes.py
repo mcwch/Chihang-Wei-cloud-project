@@ -4,6 +4,11 @@ from app import create_app
 from models import Order, OrderItem, Product, db
 
 
+def sign_in_admin(client):
+    with client.session_transaction() as admin_session:
+        admin_session["is_admin"] = True
+
+
 def create_database_product(app):
     with app.app_context():
         db.create_all()
@@ -87,6 +92,7 @@ def test_orders_page_displays_order_information():
     order_id = create_database_order(app)
 
     client = app.test_client()
+    sign_in_admin(client)
     response = client.get("/orders")
 
     assert response.status_code == 200
@@ -146,6 +152,7 @@ def test_order_detail_page_displays_customer_and_items():
     order_id = create_order_with_item(app)
 
     client = app.test_client()
+    sign_in_admin(client)
     response = client.get(f"/orders/{order_id}")
 
     with app.app_context():
@@ -169,6 +176,7 @@ def test_update_order_status():
     order_id = create_database_order(app)
 
     client = app.test_client()
+    sign_in_admin(client)
     response = client.post(
         f"/orders/{order_id}/status",
         data={"status": "Shipped"},
@@ -192,6 +200,7 @@ def test_orders_page_links_to_order_detail():
     order_id = create_database_order(app)
 
     client = app.test_client()
+    sign_in_admin(client)
     response = client.get("/orders")
 
     assert response.status_code == 200

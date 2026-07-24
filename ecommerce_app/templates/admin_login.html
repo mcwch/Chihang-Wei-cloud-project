@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}Administrator Login{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <h1>Administrator Login</h1>
+    <p>
+        Enter the administrator password to access
+        order management.
+    </p>
+</section>
+
+<section class="order-card">
+    {% if error_message %}
+        <p class="error-message">
+            {{ error_message }}
+        </p>
+    {% endif %}
+
+    <form
+        action="{{ url_for('admin_login') }}"
+        method="post"
+    >
+        <input
+            type="hidden"
+            name="next"
+            value="{{ next_url }}"
+        >
+
+        <label for="password">
+            Administrator Password
+        </label>
+
+        <input
+            id="password"
+            name="password"
+            type="password"
+            required
+            autofocus
+        >
+
+        <button type="submit">
+            Sign In
+        </button>
+    </form>
+</section>
+{% endblock %}

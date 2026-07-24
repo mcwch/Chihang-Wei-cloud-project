@@ -1,4 +1,6 @@
 from decimal import Decimal
+from functools import wraps
+from hmac import compare_digest
 
 import serverless
 
@@ -80,6 +82,90 @@ def create_app(test_config=None):
         )
 
     db.init_app(app)
+
+    def admin_required(view_function):
+        @wraps(view_function)
+        def wrapped_view(*args, **kwargs):
+            if session.get("is_admin") is not True:
+                return redirect(
+                    url_for(
+                        "admin_login",
+                        next=request.path,
+                    )
+                )
+
+            return view_function(*args, **kwargs)
+
+        return wrapped_view
+
+    @app.route(
+        "/admin/login",
+        methods=["GET", "POST"],
+    )
+    def admin_login():
+        error_message = None
+
+        next_url = request.values.get(
+            "next",
+            "",
+        ).strip()
+
+        if request.method == "POST":
+            submitted_password = request.form.get(
+                "password",
+                "",
+            )
+
+            configured_password = app.config.get(
+                "ADMIN_PASSWORD",
+                "",
+            )
+
+            password_is_valid = (
+                bool(configured_password)
+                and compare_digest(
+                    submitted_password,
+                    configured_password,
+                )
+            )
+
+            if password_is_valid:
+                session["is_admin"] = True
+                session.modified = True
+
+                if (
+                    next_url.startswith("/")
+                    and not next_url.startswith("//")
+                ):
+                    return redirect(next_url)
+
+                return redirect(url_for("orders"))
+
+            error_message = (
+                "Invalid administrator password."
+            )
+
+            return (
+                render_template(
+                    "admin_login.html",
+                    error_message=error_message,
+                    next_url=next_url,
+                ),
+                401,
+            )
+
+        return render_template(
+            "admin_login.html",
+            error_message=error_message,
+            next_url=next_url,
+        )
+
+    @app.post("/admin/logout")
+    def admin_logout():
+        session.pop("is_admin", None)
+        session.modified = True
+
+        return redirect(url_for("admin_login"))
 
     @app.get("/health")
     def health():
@@ -298,6 +384,7 @@ def create_app(test_config=None):
         )
 
     @app.route("/orders")
+    @admin_required
     def orders():
         all_orders = Order.query.order_by(
             Order.created_at.desc()
@@ -309,6 +396,7 @@ def create_app(test_config=None):
         )
 
     @app.route("/orders/<int:order_id>")
+    @admin_required
     def order_detail(order_id):
         order = db.get_or_404(Order, order_id)
 
@@ -318,6 +406,7 @@ def create_app(test_config=None):
         )
 
     @app.post("/orders/<int:order_id>/status")
+    @admin_required
     def update_order_status(order_id):
         order = db.get_or_404(Order, order_id)
 
