@@ -1,3 +1,5 @@
+from collections import deque
+from datetime import datetime, timezone
 from decimal import Decimal
 from functools import wraps
 from hmac import compare_digest
@@ -101,8 +103,26 @@ def create_app(test_config=None):
 
     monitoring_lock = Lock()
 
+    audit_log = deque(maxlen=100)
+    audit_lock = Lock()
+
     app.extensions["monitoring_state"] = monitoring_state
     app.extensions["monitoring_lock"] = monitoring_lock
+    app.extensions["audit_log"] = audit_log
+    app.extensions["audit_lock"] = audit_lock
+
+    def add_audit_event(event_type, description):
+        entry = {
+            "timestamp": datetime.now(
+                timezone.utc
+            ).strftime("%Y-%m-%d %H:%M:%S UTC"),
+            "event_type": event_type,
+            "description": description,
+            "instance": app.config["INSTANCE_NAME"],
+        }
+
+        with audit_lock:
+            audit_log.append(entry)
 
     @app.before_request
     def start_request_timer():
@@ -144,6 +164,14 @@ def create_app(test_config=None):
         @wraps(view_function)
         def wrapped_view(*args, **kwargs):
             if session.get("is_admin") is not True:
+                add_audit_event(
+                    "Unauthorized Access",
+                    (
+                        "Protected route requested: "
+                        f"{request.path}"
+                    ),
+                )
+
                 return redirect(
                     url_for(
                         "admin_login",
@@ -190,6 +218,11 @@ def create_app(test_config=None):
                 session["is_admin"] = True
                 session.modified = True
 
+                add_audit_event(
+                    "Admin Login Successful",
+                    "Administrator signed in.",
+                )
+
                 if (
                     next_url.startswith("/")
                     and not next_url.startswith("//")
@@ -202,6 +235,11 @@ def create_app(test_config=None):
                 monitoring_state[
                     "failed_admin_logins"
                 ] += 1
+
+            add_audit_event(
+                "Admin Login Failed",
+                "Incorrect administrator password.",
+            )
 
             error_message = (
                 "Invalid administrator password."
@@ -224,6 +262,12 @@ def create_app(test_config=None):
 
     @app.post("/admin/logout")
     def admin_logout():
+        if session.get("is_admin") is True:
+            add_audit_event(
+                "Admin Logout",
+                "Administrator signed out.",
+            )
+
         session.pop("is_admin", None)
         session.modified = True
 
@@ -253,6 +297,17 @@ def create_app(test_config=None):
             "instance": app.config["INSTANCE_NAME"],
             "total_orders": total_orders,
         }
+
+    @app.get("/admin/logs")
+    @admin_required
+    def admin_logs():
+        with audit_lock:
+            entries = list(reversed(audit_log))
+
+        return render_template(
+            "admin_logs.html",
+            audit_entries=entries,
+        )
 
     @app.get("/admin/monitor")
     @admin_required
@@ -614,8 +669,17 @@ def create_app(test_config=None):
         ).strip()
 
         if new_status in allowed_statuses:
+            previous_status = order.status
             order.status = new_status
             db.session.commit()
+
+            add_audit_event(
+                "Order Status Changed",
+                (
+                    f"Order #{order.id} changed from "
+                    f"{previous_status} to {new_status}."
+                ),
+            )
 
         return redirect(
             url_for(

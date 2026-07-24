@@ -1,0 +1,40 @@
+﻿{% extends "base.html" %}
+
+{% block title %}Security Audit Log{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <h1>Security Audit Log</h1>
+    <p>
+        Recent authentication, access, and order-management
+        events for this application instance.
+    </p>
+</section>
+
+{% if audit_entries %}
+    <div class="order-list">
+        {% for entry in audit_entries %}
+            <article class="order-card">
+                <h2>{{ entry["event_type"] }}</h2>
+
+                <p>
+                    <strong>Time:</strong>
+                    {{ entry["timestamp"] }}
+                </p>
+
+                <p>
+                    <strong>Details:</strong>
+                    {{ entry["description"] }}
+                </p>
+
+                <p>
+                    <strong>Instance:</strong>
+                    {{ entry["instance"] }}
+                </p>
+            </article>
+        {% endfor %}
+    </div>
+{% else %}
+    <p>No audit events have been recorded yet.</p>
+{% endif %}
+{% endblock %}
