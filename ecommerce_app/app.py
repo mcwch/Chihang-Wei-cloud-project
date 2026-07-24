@@ -386,13 +386,50 @@ def create_app(test_config=None):
     @app.route("/orders")
     @admin_required
     def orders():
+        allowed_statuses = (
+            "Pending",
+            "Processing",
+            "Shipped",
+            "Completed",
+            "Cancelled",
+        )
+
         all_orders = Order.query.order_by(
             Order.created_at.desc()
         ).all()
 
+        order_statistics = {
+            "total": len(all_orders),
+        }
+
+        for status in allowed_statuses:
+            order_statistics[status] = sum(
+                order.status == status
+                for order in all_orders
+            )
+
+        requested_status = request.args.get(
+            "status",
+            "",
+        ).strip()
+
+        if requested_status in allowed_statuses:
+            displayed_orders = [
+                order
+                for order in all_orders
+                if order.status == requested_status
+            ]
+            active_filter = requested_status
+        else:
+            displayed_orders = all_orders
+            active_filter = None
+
         return render_template(
             "orders.html",
-            orders=all_orders,
+            orders=displayed_orders,
+            order_statistics=order_statistics,
+            allowed_statuses=allowed_statuses,
+            active_filter=active_filter,
         )
 
     @app.route("/orders/<int:order_id>")
@@ -415,6 +452,7 @@ def create_app(test_config=None):
             "Processing",
             "Shipped",
             "Completed",
+            "Cancelled",
         }
 
         new_status = request.form.get(
