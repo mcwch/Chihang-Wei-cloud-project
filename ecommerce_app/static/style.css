@@ -609,3 +609,175 @@ nav {
         padding: 25px;
     }
 }
+
+
+/* Module 9: Security and monitoring */
+
+.page-header {
+    padding: 42px 0 24px;
+}
+
+.page-header h1 {
+    margin: 0 0 8px;
+    font-size: clamp(2rem, 4vw, 2.8rem);
+}
+
+.page-header p {
+    margin: 0;
+    color: #64748b;
+}
+
+nav {
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.nav-form {
+    display: inline;
+    margin: 0;
+}
+
+.nav-button {
+    padding: 0;
+    color: #374151;
+    background: transparent;
+    border: 0;
+    font: inherit;
+    cursor: pointer;
+}
+
+nav a:hover,
+.nav-button:hover {
+    color: #2563eb;
+}
+
+.order-statistics {
+    display: grid;
+    grid-template-columns: repeat(
+        auto-fit,
+        minmax(170px, 1fr)
+    );
+    gap: 16px;
+    margin-bottom: 28px;
+}
+
+.order-list {
+    display: grid;
+    grid-template-columns: repeat(
+        auto-fit,
+        minmax(260px, 1fr)
+    );
+    gap: 18px;
+}
+
+.order-card {
+    padding: 24px;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+}
+
+.order-card h2 {
+    margin-top: 0;
+}
+
+.order-card h2 a {
+    color: #111827;
+    text-decoration: none;
+}
+
+.order-card h2 a:hover {
+    color: #2563eb;
+}
+
+.order-filters {
+    margin-bottom: 28px;
+    padding: 22px;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+}
+
+.order-filters h2 {
+    margin-top: 0;
+}
+
+.order-filters a {
+    display: inline-block;
+    margin: 0 8px 8px 0;
+    padding: 8px 13px;
+    color: #1d4ed8;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 999px;
+    text-decoration: none;
+}
+
+.order-filters a:hover {
+    color: #ffffff;
+    background: #2563eb;
+}
+
+.order-card form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.order-card label {
+    font-weight: 700;
+}
+
+.order-card input,
+.order-card select {
+    width: 100%;
+    padding: 11px 12px;
+    font: inherit;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+}
+
+.order-card button[type="submit"] {
+    align-self: flex-start;
+    padding: 10px 16px;
+    color: #ffffff;
+    background: #2563eb;
+    border: 0;
+    border-radius: 8px;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.order-card button[type="submit"]:hover {
+    background: #1d4ed8;
+}
+
+.order-item {
+    padding: 15px 0;
+    border-top: 1px solid #e5e7eb;
+}
+
+.order-item:first-of-type {
+    border-top: 0;
+}
+
+@media (max-width: 760px) {
+    .header-content {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 14px;
+        padding: 18px 0;
+    }
+
+    nav {
+        gap: 14px;
+    }
+
+    .order-list,
+    .order-statistics {
+        grid-template-columns: 1fr;
+    }
+}
