@@ -4,6 +4,8 @@ from hmac import compare_digest
 
 import serverless
 
+from sqlalchemy import text
+
 from flask import (
     Flask,
     redirect,
@@ -169,9 +171,27 @@ def create_app(test_config=None):
 
     @app.get("/health")
     def health():
+        try:
+            db.session.execute(text("SELECT 1"))
+            total_orders = Order.query.count()
+
+        except Exception:
+            db.session.rollback()
+
+            return (
+                {
+                    "status": "unhealthy",
+                    "database": "disconnected",
+                    "instance": app.config["INSTANCE_NAME"],
+                },
+                503,
+            )
+
         return {
             "status": "healthy",
+            "database": "connected",
             "instance": app.config["INSTANCE_NAME"],
+            "total_orders": total_orders,
         }
 
     @app.after_request
