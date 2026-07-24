@@ -5,7 +5,48 @@
 {% block content %}
 <section class="page-header">
     <h1>Order Management</h1>
-    <p>View and manage customer orders.</p>
+    <p>View, filter, and manage customer orders.</p>
+</section>
+
+<section class="order-statistics">
+    <div class="order-card">
+        <strong>
+            Total Orders: {{ order_statistics["total"] }}
+        </strong>
+    </div>
+
+    {% for status in allowed_statuses %}
+        <div class="order-card">
+            <strong>
+                {{ status }}:
+                {{ order_statistics[status] }}
+            </strong>
+        </div>
+    {% endfor %}
+</section>
+
+<section class="order-filters">
+    <h2>Filter Orders</h2>
+
+    <a href="{{ url_for('orders') }}">
+        All
+    </a>
+
+    {% for status in allowed_statuses %}
+        <a
+            href="{{ url_for('orders', status=status) }}"
+        >
+            {{ status }}
+        </a>
+    {% endfor %}
+
+    {% if active_filter %}
+        <p>
+            <strong>Showing: {{ active_filter }}</strong>
+        </p>
+    {% else %}
+        <p><strong>Showing: All Orders</strong></p>
+    {% endif %}
 </section>
 
 {% if orders %}
@@ -36,6 +77,6 @@
         {% endfor %}
     </div>
 {% else %}
-    <p>No orders have been placed yet.</p>
+    <p>No orders match the selected status.</p>
 {% endif %}
 {% endblock %}

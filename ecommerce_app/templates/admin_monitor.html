@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+
+{% block title %}Application Monitoring{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <h1>Application Monitoring</h1>
+    <p>
+        Runtime health and request statistics for
+        {{ config["INSTANCE_NAME"] }}.
+    </p>
+</section>
+
+<section class="order-statistics">
+    <article class="order-card">
+        <strong>Application Status: Healthy</strong>
+    </article>
+
+    <article class="order-card">
+        <strong>
+            Database Status: {{ database_status }}
+        </strong>
+    </article>
+
+    <article class="order-card">
+        <strong>
+            Application Uptime:
+            {{ "%.1f"|format(uptime_seconds) }} seconds
+        </strong>
+    </article>
+
+    <article class="order-card">
+        <strong>
+            Total Requests:
+            {{ monitoring["total_requests"] }}
+        </strong>
+    </article>
+
+    <article class="order-card">
+        <strong>
+            Average Response Time:
+            {{ "%.2f"|format(average_response_time_ms) }} ms
+        </strong>
+    </article>
+
+    <article class="order-card">
+        <strong>
+            403 Responses:
+            {{ monitoring["responses_403"] }}
+        </strong>
+    </article>
+
+    <article class="order-card">
+        <strong>
+            404 Responses:
+            {{ monitoring["responses_404"] }}
+        </strong>
+    </article>
+
+    <article class="order-card">
+        <strong>
+            500 Responses:
+            {{ monitoring["responses_500"] }}
+        </strong>
+    </article>
+
+    <article class="order-card">
+        <strong>
+            Failed Admin Logins:
+            {{ monitoring["failed_admin_logins"] }}
+        </strong>
+    </article>
+
+    <article class="order-card">
+        <strong>
+            Total Orders:
+            {{ order_statistics["total"] }}
+        </strong>
+    </article>
+</section>
+
+<section class="order-card">
+    <h2>Order Status Summary</h2>
+
+    <p>Pending: {{ order_statistics["Pending"] }}</p>
+    <p>Processing: {{ order_statistics["Processing"] }}</p>
+    <p>Shipped: {{ order_statistics["Shipped"] }}</p>
+    <p>Completed: {{ order_statistics["Completed"] }}</p>
+    <p>Cancelled: {{ order_statistics["Cancelled"] }}</p>
+</section>
+{% endblock %}

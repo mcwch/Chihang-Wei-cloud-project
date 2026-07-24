@@ -12,6 +12,11 @@ class Config:
         "development-secret-key",
     )
 
+    ADMIN_PASSWORD = os.getenv(
+        "ADMIN_PASSWORD",
+        "",
+    )
+
     DB_HOST = os.getenv("DB_HOST", "localhost")
     DB_PORT = os.getenv("DB_PORT", "3306")
     DB_NAME = os.getenv("DB_NAME", "ecommerce_app")

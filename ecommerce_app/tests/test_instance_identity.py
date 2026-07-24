@@ -19,10 +19,14 @@ def test_health_endpoint_returns_instance_identity():
     response = client.get("/health")
 
     assert response.status_code == 200
-    assert response.get_json() == {
-        "status": "healthy",
-        "instance": "Test Instance",
-    }
+
+    payload = response.get_json()
+
+    assert payload["status"] == "healthy"
+    assert payload["database"] == "connected"
+    assert payload["instance"] == "Test Instance"
+    assert isinstance(payload["total_orders"], int)
+    assert payload["total_orders"] >= 0
 
 
 def test_every_response_contains_instance_header():
