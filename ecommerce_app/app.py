@@ -1,6 +1,8 @@
 from decimal import Decimal
 from functools import wraps
 from hmac import compare_digest
+from threading import Lock
+from time import perf_counter
 
 import serverless
 
@@ -8,6 +10,7 @@ from sqlalchemy import text
 
 from flask import (
     Flask,
+    g,
     redirect,
     render_template,
     request,
@@ -85,6 +88,58 @@ def create_app(test_config=None):
 
     db.init_app(app)
 
+    monitoring_state = {
+        "started_at": perf_counter(),
+        "total_requests": 0,
+        "successful_responses": 0,
+        "responses_403": 0,
+        "responses_404": 0,
+        "responses_500": 0,
+        "failed_admin_logins": 0,
+        "total_response_time_ms": 0.0,
+    }
+
+    monitoring_lock = Lock()
+
+    app.extensions["monitoring_state"] = monitoring_state
+    app.extensions["monitoring_lock"] = monitoring_lock
+
+    @app.before_request
+    def start_request_timer():
+        g.request_started_at = perf_counter()
+
+    @app.after_request
+    def record_request_metrics(response):
+        started_at = getattr(
+            g,
+            "request_started_at",
+            perf_counter(),
+        )
+
+        response_time_ms = (
+            perf_counter() - started_at
+        ) * 1000
+
+        with monitoring_lock:
+            monitoring_state["total_requests"] += 1
+            monitoring_state[
+                "total_response_time_ms"
+            ] += response_time_ms
+
+            if 200 <= response.status_code < 400:
+                monitoring_state[
+                    "successful_responses"
+                ] += 1
+
+            if response.status_code == 403:
+                monitoring_state["responses_403"] += 1
+            elif response.status_code == 404:
+                monitoring_state["responses_404"] += 1
+            elif response.status_code >= 500:
+                monitoring_state["responses_500"] += 1
+
+        return response
+
     def admin_required(view_function):
         @wraps(view_function)
         def wrapped_view(*args, **kwargs):
@@ -143,6 +198,11 @@ def create_app(test_config=None):
 
                 return redirect(url_for("orders"))
 
+            with monitoring_lock:
+                monitoring_state[
+                    "failed_admin_logins"
+                ] += 1
+
             error_message = (
                 "Invalid administrator password."
             )
@@ -193,6 +253,79 @@ def create_app(test_config=None):
             "instance": app.config["INSTANCE_NAME"],
             "total_orders": total_orders,
         }
+
+    @app.get("/admin/monitor")
+    @admin_required
+    def admin_monitor():
+        allowed_statuses = (
+            "Pending",
+            "Processing",
+            "Shipped",
+            "Completed",
+            "Cancelled",
+        )
+
+        try:
+            db.session.execute(text("SELECT 1"))
+            database_status = "Connected"
+
+            all_orders = Order.query.all()
+
+            order_statistics = {
+                "total": len(all_orders),
+            }
+
+            for status in allowed_statuses:
+                order_statistics[status] = sum(
+                    order.status == status
+                    for order in all_orders
+                )
+
+        except Exception:
+            db.session.rollback()
+            database_status = "Disconnected"
+
+            order_statistics = {
+                "total": 0,
+            }
+
+            for status in allowed_statuses:
+                order_statistics[status] = 0
+
+        with monitoring_lock:
+            monitoring_snapshot = dict(
+                monitoring_state
+            )
+
+        total_requests = monitoring_snapshot[
+            "total_requests"
+        ]
+
+        if total_requests:
+            average_response_time_ms = (
+                monitoring_snapshot[
+                    "total_response_time_ms"
+                ]
+                / total_requests
+            )
+        else:
+            average_response_time_ms = 0.0
+
+        uptime_seconds = (
+            perf_counter()
+            - monitoring_snapshot["started_at"]
+        )
+
+        return render_template(
+            "admin_monitor.html",
+            database_status=database_status,
+            monitoring=monitoring_snapshot,
+            average_response_time_ms=(
+                average_response_time_ms
+            ),
+            uptime_seconds=uptime_seconds,
+            order_statistics=order_statistics,
+        )
 
     @app.after_request
     def add_instance_header(response):
