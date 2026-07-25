@@ -74,3 +74,25 @@ def test_seed_products_does_not_create_duplicates():
         assert first_created_count == 10
         assert second_created_count == 0
         assert Product.query.count() == 10
+
+
+def test_seed_main_runs_default_catalog(capsys):
+    from seed import main
+
+    app = create_app({"TESTING": True})
+
+    with app.app_context():
+        db.create_all()
+        reset_products()
+
+    created_count = main(
+        app_factory=lambda: app
+    )
+
+    with app.app_context():
+        assert Product.query.count() == 10
+
+    output = capsys.readouterr().out
+
+    assert created_count == 10
+    assert "Created 10 missing products." in output

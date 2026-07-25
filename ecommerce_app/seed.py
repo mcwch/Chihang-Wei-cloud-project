@@ -131,3 +131,26 @@ def seed_products():
 
     db.session.commit()
     return created_count
+
+
+def main(app_factory=None):
+    if app_factory is None:
+        from app import create_app
+
+        app_factory = create_app
+
+    app = app_factory()
+
+    with app.app_context():
+        db.create_all()
+        created_count = seed_products()
+
+    print(
+        f"Created {created_count} missing products."
+    )
+
+    return created_count
+
+
+if __name__ == "__main__":
+    main()
