@@ -1,23 +1,40 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 
 {% block title %}Shop | NovaGear{% endblock %}
 
 {% block content %}
-<section class="hero">
-    <p class="eyebrow">Tech for Everyday Life</p>
-    <h1>Upgrade Your Everyday Tech</h1>
-    <p>
-        Smart accessories for work, travel, and everyday life.
-    </p>
+<section class="hero hero-panel">
+    <div class="hero-content">
+        <p class="eyebrow">Tech for Everyday Life</p>
+
+        <h1>Upgrade Your Everyday Tech</h1>
+
+        <p class="hero-description">
+            Smart accessories for work, travel, and everyday life.
+        </p>
+
+        <div class="hero-actions">
+            <a
+                class="button hero-primary-button"
+                href="#featured-products"
+            >
+                Shop Products
+            </a>
+
+            <span class="hero-offer">
+                Summer Sale: 20% off selected items
+            </span>
+        </div>
+    </div>
 </section>
 
-<div class="sale-banner">
-    Summer Sale: 20% off selected items!
-</div>
-
-<section>
+<section id="featured-products">
     <div class="section-heading">
-        <h2>Featured Products</h2>
+        <div>
+            <p class="section-eyebrow">NovaGear Collection</p>
+            <h2>Featured Products</h2>
+        </div>
+
         <span>{{ products|length }} products</span>
     </div>
 
@@ -25,33 +42,39 @@
         <div class="product-grid">
             {% for product in products %}
                 <article class="product-card">
-                    <div class="product-category">
-                        {{ product.category }}
+                    <div class="product-card-body">
+                        <div class="product-category">
+                            {{ product.category }}
+                        </div>
+
+                        <h3>{{ product.name }}</h3>
+
+                        <p class="description">
+                            {{ product.description }}
+                        </p>
                     </div>
 
-                    <h3>{{ product.name }}</h3>
+                    <div class="product-card-footer">
+                        <div class="product-card-meta">
+                            <p class="price">
+                                ${{ "%.2f"|format(product.price) }}
+                            </p>
 
-                    <p class="price">
-                        ${{ "%.2f"|format(product.price) }}
-                    </p>
+                            <p class="stock-badge">
+                                In Stock: {{ product.stock }}
+                            </p>
+                        </div>
 
-                    <p class="description">
-                        {{ product.description }}
-                    </p>
-
-                    <p class="stock">
-                        In Stock: {{ product.stock }}
-                    </p>
-
-                    <a
-                        class="button"
-                        href="{{ url_for(
-                            'product_detail',
-                            product_id=product.id
-                        ) }}"
-                    >
-                        View Details
-                    </a>
+                        <a
+                            class="button"
+                            href="{{ url_for(
+                                'product_detail',
+                                product_id=product.id
+                            ) }}"
+                        >
+                            View Details
+                        </a>
+                    </div>
                 </article>
             {% endfor %}
         </div>
