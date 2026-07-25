@@ -510,6 +510,120 @@ def create_app(test_config=None):
             error_message=error_message,
         )
 
+    @app.route(
+        "/admin/products/<int:product_id>/edit",
+        methods=["GET", "POST"],
+    )
+    @admin_required
+    def admin_product_edit(product_id):
+        product = db.get_or_404(Product, product_id)
+
+        form_values = {
+            "name": product.name,
+            "description": product.description,
+            "price": str(product.price),
+            "stock": str(product.stock),
+            "category": product.category,
+        }
+        error_message = None
+
+        if request.method == "POST":
+            form_values = {
+                field: request.form.get(field, "").strip()
+                for field in form_values
+            }
+
+            name = form_values["name"]
+            description = form_values["description"]
+            category = form_values["category"]
+
+            if not name:
+                error_message = "Product name is required."
+
+            elif not description:
+                error_message = "Product description is required."
+
+            elif not category:
+                error_message = "Product category is required."
+
+            else:
+                try:
+                    price = Decimal(form_values["price"])
+                except (InvalidOperation, ValueError):
+                    price = None
+
+                if (
+                    price is None
+                    or not price.is_finite()
+                    or price < 0
+                ):
+                    error_message = (
+                        "Please enter a valid non-negative price."
+                    )
+
+            if error_message is None:
+                try:
+                    stock = int(form_values["stock"])
+                except (TypeError, ValueError):
+                    stock = None
+
+                if stock is None or stock < 0:
+                    error_message = (
+                        "Please enter a valid non-negative "
+                        "stock quantity."
+                    )
+
+            if error_message is None:
+                duplicate_product = Product.query.filter(
+                    Product.name == name,
+                    Product.id != product.id,
+                ).first()
+
+                if duplicate_product is not None:
+                    error_message = (
+                        "A product with this name already exists."
+                    )
+
+            if error_message is not None:
+                return (
+                    render_template(
+                        "admin_product_form.html",
+                        page_title="Edit Product",
+                        submit_label="Save Changes",
+                        form_values=form_values,
+                        error_message=error_message,
+                    ),
+                    400,
+                )
+
+            previous_name = product.name
+
+            product.name = name
+            product.description = description
+            product.price = price
+            product.stock = stock
+            product.category = category
+
+            db.session.commit()
+
+            add_audit_event(
+                "Product Updated",
+                (
+                    f"{previous_name} was updated as "
+                    f"{product.name}."
+                ),
+            )
+
+            return redirect(url_for("admin_products"))
+
+        return render_template(
+            "admin_product_form.html",
+            page_title="Edit Product",
+            submit_label="Save Changes",
+            form_values=form_values,
+            error_message=error_message,
+        )
+
     @app.route("/")
     def home():
         products = Product.query.order_by(Product.id).all()

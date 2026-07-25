@@ -241,3 +241,168 @@ def test_add_product_rejects_invalid_stock(stock):
         b"Please enter a valid non-negative stock quantity."
         in response.data
     )
+
+
+def create_managed_product(app, product_name):
+    delete_product_by_name(app, product_name)
+
+    with app.app_context():
+        product = Product(
+            name=product_name,
+            description="Original product description.",
+            price=Decimal("35.00"),
+            stock=6,
+            category="Original Category",
+            image_url=None,
+        )
+
+        db.session.add(product)
+        db.session.commit()
+
+        return product.id
+
+
+def test_edit_product_page_requires_admin_login():
+    product_name = "Protected Edit Product"
+    app = create_app({"TESTING": True})
+    product_id = create_managed_product(app, product_name)
+
+    client = app.test_client()
+    response = client.get(
+        f"/admin/products/{product_id}/edit"
+    )
+
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith(
+        f"/admin/login?next=/admin/products/{product_id}/edit"
+    )
+
+
+def test_admin_can_open_edit_product_form():
+    product_name = "Editable Product"
+    app = create_app({"TESTING": True})
+    product_id = create_managed_product(app, product_name)
+
+    client = app.test_client()
+    sign_in_admin(client)
+
+    response = client.get(
+        f"/admin/products/{product_id}/edit"
+    )
+
+    assert response.status_code == 200
+    assert b"Edit Product" in response.data
+    assert product_name.encode() in response.data
+    assert b"Original product description." in response.data
+    assert b'value="35.00"' in response.data
+    assert b'value="6"' in response.data
+    assert b'value="Original Category"' in response.data
+
+
+def test_admin_can_update_product_and_audit_event():
+    original_name = "Product Before Update"
+    updated_name = "Product After Update"
+
+    app = create_app({"TESTING": True})
+    delete_product_by_name(app, updated_name)
+    product_id = create_managed_product(app, original_name)
+
+    client = app.test_client()
+    sign_in_admin(client)
+
+    response = client.post(
+        f"/admin/products/{product_id}/edit",
+        data={
+            "name": updated_name,
+            "description": "Updated product description.",
+            "price": "42.50",
+            "stock": "19",
+            "category": "Updated Category",
+        },
+    )
+
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith(
+        "/admin/products"
+    )
+
+    with app.app_context():
+        product = db.session.get(Product, product_id)
+
+        assert product.name == updated_name
+        assert product.description == (
+            "Updated product description."
+        )
+        assert product.price == Decimal("42.50")
+        assert product.stock == 19
+        assert product.category == "Updated Category"
+
+    audit_entries = list(app.extensions["audit_log"])
+
+    assert any(
+        entry["event_type"] == "Product Updated"
+        and updated_name in entry["description"]
+        for entry in audit_entries
+    )
+
+
+def test_edit_product_allows_existing_name_for_same_product():
+    product_name = "Same Name Product"
+
+    app = create_app({"TESTING": True})
+    product_id = create_managed_product(app, product_name)
+
+    client = app.test_client()
+    sign_in_admin(client)
+
+    response = client.post(
+        f"/admin/products/{product_id}/edit",
+        data={
+            "name": product_name,
+            "description": "Changed while keeping the same name.",
+            "price": "36.00",
+            "stock": "8",
+            "category": "Accessories",
+        },
+    )
+
+    assert response.status_code == 302
+
+    with app.app_context():
+        product = db.session.get(Product, product_id)
+        assert product.description == (
+            "Changed while keeping the same name."
+        )
+
+
+def test_edit_product_rejects_another_products_name():
+    first_name = "First Managed Product"
+    second_name = "Second Managed Product"
+
+    app = create_app({"TESTING": True})
+    first_id = create_managed_product(app, first_name)
+    create_managed_product(app, second_name)
+
+    client = app.test_client()
+    sign_in_admin(client)
+
+    response = client.post(
+        f"/admin/products/{first_id}/edit",
+        data={
+            "name": second_name,
+            "description": "Attempted duplicate.",
+            "price": "40.00",
+            "stock": "5",
+            "category": "Accessories",
+        },
+    )
+
+    assert response.status_code == 400
+    assert (
+        b"A product with this name already exists."
+        in response.data
+    )
+
+    with app.app_context():
+        first_product = db.session.get(Product, first_id)
+        assert first_product.name == first_name
