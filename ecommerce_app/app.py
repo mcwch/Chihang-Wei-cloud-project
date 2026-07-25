@@ -13,6 +13,7 @@ from sqlalchemy import text
 from flask import (
     Flask,
     g,
+    got_request_exception,
     redirect,
     render_template,
     request,
@@ -21,6 +22,7 @@ from flask import (
 )
 
 from config import Config
+from logging_config import configure_application_logging
 from models import Order, OrderItem, Product, db
 
 
@@ -107,6 +109,39 @@ def create_app(test_config=None):
 
     db.init_app(app)
 
+    application_logger = configure_application_logging(app)
+
+    def log_unhandled_exception(
+        sender,
+        exception,
+        **extra,
+    ):
+        application_logger.error(
+            (
+                "instance=%s method=%s path=%s "
+                "unhandled_exception=%s"
+            ),
+            app.config["INSTANCE_NAME"],
+            request.method,
+            request.path,
+            type(exception).__name__,
+            exc_info=(
+                type(exception),
+                exception,
+                exception.__traceback__,
+            ),
+        )
+
+    got_request_exception.connect(
+        log_unhandled_exception,
+        app,
+        weak=False,
+    )
+
+    app.extensions[
+        "exception_log_handler"
+    ] = log_unhandled_exception
+
     monitoring_state = {
         "started_at": perf_counter(),
         "total_requests": 0,
@@ -174,6 +209,38 @@ def create_app(test_config=None):
                 monitoring_state["responses_404"] += 1
             elif response.status_code >= 500:
                 monitoring_state["responses_500"] += 1
+
+        if (
+            request.path != "/health"
+            and not request.path.startswith("/static/")
+        ):
+            log_message = (
+                "instance=%s method=%s path=%s "
+                "status=%s response_time_ms=%.2f"
+            )
+            log_arguments = (
+                app.config["INSTANCE_NAME"],
+                request.method,
+                request.path,
+                response.status_code,
+                response_time_ms,
+            )
+
+            if response.status_code >= 500:
+                application_logger.error(
+                    log_message,
+                    *log_arguments,
+                )
+            elif response.status_code >= 400:
+                application_logger.warning(
+                    log_message,
+                    *log_arguments,
+                )
+            else:
+                application_logger.info(
+                    log_message,
+                    *log_arguments,
+                )
 
         return response
 
