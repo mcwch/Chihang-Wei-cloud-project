@@ -406,3 +406,172 @@ def test_edit_product_rejects_another_products_name():
     with app.app_context():
         first_product = db.session.get(Product, first_id)
         assert first_product.name == first_name
+
+
+def set_product_active_status(app, product_id, is_active):
+    with app.app_context():
+        product = db.session.get(Product, product_id)
+        product.is_active = is_active
+        db.session.commit()
+
+
+def test_archive_product_requires_admin_login():
+    product_name = "Protected Archive Product"
+
+    app = create_app({"TESTING": True})
+    product_id = create_managed_product(app, product_name)
+
+    client = app.test_client()
+
+    response = client.post(
+        f"/admin/products/{product_id}/archive"
+    )
+
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith(
+        f"/admin/login?next=/admin/products/{product_id}/archive"
+    )
+
+
+def test_admin_can_archive_product_and_audit_event():
+    product_name = "Product To Archive"
+
+    app = create_app({"TESTING": True})
+    product_id = create_managed_product(app, product_name)
+
+    client = app.test_client()
+    sign_in_admin(client)
+
+    response = client.post(
+        f"/admin/products/{product_id}/archive"
+    )
+
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith(
+        "/admin/products"
+    )
+
+    with app.app_context():
+        product = db.session.get(Product, product_id)
+        assert product.is_active is False
+
+    audit_entries = list(app.extensions["audit_log"])
+
+    assert any(
+        entry["event_type"] == "Product Archived"
+        and product_name in entry["description"]
+        for entry in audit_entries
+    )
+
+
+def test_archived_product_is_hidden_from_homepage():
+    product_name = "Hidden Archived Product"
+
+    app = create_app({"TESTING": True})
+    product_id = create_managed_product(app, product_name)
+    set_product_active_status(app, product_id, False)
+
+    client = app.test_client()
+    response = client.get("/")
+
+    assert response.status_code == 200
+    assert product_name.encode() not in response.data
+
+
+def test_archived_product_detail_returns_404():
+    product_name = "Archived Detail Product"
+
+    app = create_app({"TESTING": True})
+    product_id = create_managed_product(app, product_name)
+    set_product_active_status(app, product_id, False)
+
+    client = app.test_client()
+
+    response = client.get(f"/product/{product_id}")
+
+    assert response.status_code == 404
+
+
+def test_archived_product_cannot_be_added_to_cart():
+    product_name = "Archived Cart Product"
+
+    app = create_app({"TESTING": True})
+    product_id = create_managed_product(app, product_name)
+    set_product_active_status(app, product_id, False)
+
+    client = app.test_client()
+
+    response = client.post(
+        f"/cart/add/{product_id}",
+        data={"quantity": "1"},
+    )
+
+    assert response.status_code == 404
+
+    with client.session_transaction() as customer_session:
+        cart = customer_session.get("cart", {})
+        assert str(product_id) not in cart
+
+
+def test_admin_can_restore_product_and_audit_event():
+    product_name = "Product To Restore"
+
+    app = create_app({"TESTING": True})
+    product_id = create_managed_product(app, product_name)
+    set_product_active_status(app, product_id, False)
+
+    client = app.test_client()
+    sign_in_admin(client)
+
+    response = client.post(
+        f"/admin/products/{product_id}/restore"
+    )
+
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith(
+        "/admin/products"
+    )
+
+    with app.app_context():
+        product = db.session.get(Product, product_id)
+        assert product.is_active is True
+
+    audit_entries = list(app.extensions["audit_log"])
+
+    assert any(
+        entry["event_type"] == "Product Restored"
+        and product_name in entry["description"]
+        for entry in audit_entries
+    )
+
+
+def test_admin_product_page_shows_archive_and_restore_actions():
+    active_name = "Active Action Product"
+    archived_name = "Archived Action Product"
+
+    app = create_app({"TESTING": True})
+
+    active_id = create_managed_product(app, active_name)
+    archived_id = create_managed_product(app, archived_name)
+
+    set_product_active_status(app, archived_id, False)
+
+    client = app.test_client()
+    sign_in_admin(client)
+
+    response = client.get("/admin/products")
+    html = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+
+    assert (
+        f'action="/admin/products/{active_id}/archive"'
+        in html
+    )
+    assert (
+        f'action="/admin/products/{archived_id}/restore"'
+        in html
+    )
+
+    assert "Archive" in html
+    assert "Restore" in html

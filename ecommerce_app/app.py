@@ -36,7 +36,8 @@ def get_cart_summary():
     ]
 
     products = Product.query.filter(
-        Product.id.in_(product_ids)
+        Product.id.in_(product_ids),
+        Product.is_active.is_(True),
     ).all()
 
     products_by_id = {
@@ -624,9 +625,53 @@ def create_app(test_config=None):
             error_message=error_message,
         )
 
+    @app.post(
+        "/admin/products/<int:product_id>/archive"
+    )
+    @admin_required
+    def admin_product_archive(product_id):
+        product = db.get_or_404(Product, product_id)
+
+        if product.is_active:
+            product.is_active = False
+            db.session.commit()
+
+            add_audit_event(
+                "Product Archived",
+                (
+                    f"{product.name} was archived and removed "
+                    "from the customer catalogue."
+                ),
+            )
+
+        return redirect(url_for("admin_products"))
+
+    @app.post(
+        "/admin/products/<int:product_id>/restore"
+    )
+    @admin_required
+    def admin_product_restore(product_id):
+        product = db.get_or_404(Product, product_id)
+
+        if not product.is_active:
+            product.is_active = True
+            db.session.commit()
+
+            add_audit_event(
+                "Product Restored",
+                (
+                    f"{product.name} was restored to the "
+                    "customer catalogue."
+                ),
+            )
+
+        return redirect(url_for("admin_products"))
+
     @app.route("/")
     def home():
-        products = Product.query.order_by(Product.id).all()
+        products = Product.query.filter_by(
+            is_active=True
+        ).order_by(Product.id).all()
 
         return render_template(
             "index.html",
@@ -635,7 +680,10 @@ def create_app(test_config=None):
 
     @app.route("/product/<int:product_id>")
     def product_detail(product_id):
-        product = db.get_or_404(Product, product_id)
+        product = Product.query.filter_by(
+            id=product_id,
+            is_active=True,
+        ).first_or_404()
 
         return render_template(
             "product_detail.html",
@@ -644,7 +692,10 @@ def create_app(test_config=None):
 
     @app.post("/cart/add/<int:product_id>")
     def add_to_cart(product_id):
-        product = db.get_or_404(Product, product_id)
+        product = Product.query.filter_by(
+            id=product_id,
+            is_active=True,
+        ).first_or_404()
 
         try:
             quantity = int(request.form.get("quantity", 1))
