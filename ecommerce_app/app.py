@@ -1,3 +1,4 @@
+from pathlib import Path
 from collections import deque
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
@@ -24,6 +25,31 @@ from flask import (
 from config import Config
 from logging_config import configure_application_logging
 from models import Order, OrderItem, Product, db
+
+
+def read_recent_log_lines(
+    log_file,
+    limit=100,
+):
+    if not log_file:
+        return []
+
+    log_path = Path(log_file)
+
+    try:
+        lines = log_path.read_text(
+            encoding="utf-8-sig",
+        ).splitlines()
+    except (OSError, UnicodeError):
+        return []
+
+    non_empty_lines = [
+        line
+        for line in lines
+        if line.strip()
+    ]
+
+    return list(reversed(non_empty_lines))[:limit]
 
 
 def get_cart_summary():
@@ -388,9 +414,42 @@ def create_app(test_config=None):
         with audit_lock:
             entries = list(reversed(audit_log))
 
+        configured_log_directory = app.config.get(
+            "LOG_DIR"
+        )
+
+        if configured_log_directory:
+            log_directory = Path(
+                configured_log_directory
+            )
+        else:
+            log_directory = (
+                Path(app.root_path) / "logs"
+            )
+
+        application_log_entries = (
+            read_recent_log_lines(
+                app.extensions.get(
+                    "application_log_file"
+                )
+            )
+        )
+
+        load_balancer_log_entries = (
+            read_recent_log_lines(
+                log_directory / "load_balancer.log"
+            )
+        )
+
         return render_template(
             "admin_logs.html",
             audit_entries=entries,
+            application_log_entries=(
+                application_log_entries
+            ),
+            load_balancer_log_entries=(
+                load_balancer_log_entries
+            ),
         )
 
     @app.get("/admin/monitor")
