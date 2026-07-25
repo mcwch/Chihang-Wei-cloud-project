@@ -389,6 +389,16 @@ def create_app(test_config=None):
         )
         return response
 
+    @app.get("/admin/products")
+    @admin_required
+    def admin_products():
+        products = Product.query.order_by(Product.id).all()
+
+        return render_template(
+            "admin_products.html",
+            products=products,
+        )
+
     @app.route("/")
     def home():
         products = Product.query.order_by(Product.id).all()
