@@ -158,3 +158,21 @@ def test_admin_logs_page_handles_empty_or_missing_files(
         "No load balancer log entries are available."
         in html
     )
+
+
+def test_admin_log_console_styles_are_defined():
+    from pathlib import Path
+
+    stylesheet = (
+        Path(__file__).resolve().parents[1]
+        / "static"
+        / "style.css"
+    ).read_text(encoding="utf-8-sig")
+
+    assert ".admin-log-section" in stylesheet
+    assert ".persistent-log-list" in stylesheet
+    assert ".persistent-log-entry" in stylesheet
+
+    assert "max-height: 420px" in stylesheet
+    assert "overflow: auto" in stylesheet
+    assert "font-family: Consolas" in stylesheet
