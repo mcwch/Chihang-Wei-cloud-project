@@ -6,6 +6,8 @@ from pathlib import Path
 
 from flask import Flask, Response, jsonify, render_template, request
 
+from logging_config import configure_load_balancer_logging
+
 
 class TargetRegistry:
     def __init__(self, config_path):
@@ -123,6 +125,7 @@ class HealthMonitor:
         request_get=None,
         timeout=2.0,
         interval=5.0,
+        logger=None,
     ):
         if interval <= 0:
             raise ValueError(
@@ -135,6 +138,7 @@ class HealthMonitor:
         )
         self.timeout = timeout
         self.interval = interval
+        self.logger = logger
 
         self._lock = threading.Lock()
         self._states = []
@@ -187,8 +191,65 @@ class HealthMonitor:
             )
 
         with self._lock:
+            previous_by_name = {
+                state["name"]: state
+                for state in self._states
+            }
+
             self._states = states
-            return deepcopy(self._states)
+            state_snapshot = deepcopy(self._states)
+
+        if self.logger is not None:
+            for state in states:
+                previous_state = previous_by_name.get(
+                    state["name"]
+                )
+
+                current_status = (
+                    "healthy"
+                    if state["healthy"]
+                    else "unhealthy"
+                )
+
+                if previous_state is None:
+                    log_method = (
+                        self.logger.info
+                        if state["healthy"]
+                        else self.logger.warning
+                    )
+
+                    log_method(
+                        (
+                            "event=health_observed "
+                            "backend=%s status=%s"
+                        ),
+                        state["name"],
+                        current_status,
+                    )
+
+                elif (
+                    previous_state["healthy"] is True
+                    and state["healthy"] is False
+                ):
+                    self.logger.warning(
+                        (
+                            "event=became_unhealthy "
+                            "backend=%s details=%s"
+                        ),
+                        state["name"],
+                        state["error"] or "Unknown error",
+                    )
+
+                elif (
+                    previous_state["healthy"] is False
+                    and state["healthy"] is True
+                ):
+                    self.logger.info(
+                        "event=recovered backend=%s",
+                        state["name"],
+                    )
+
+        return state_snapshot
 
 
     @property
@@ -308,6 +369,7 @@ def create_load_balancer_app(
     config_path=None,
     request_session=None,
     start_monitor=True,
+    log_dir=None,
 ):
     app = Flask(
         __name__,
@@ -326,11 +388,19 @@ def create_load_balancer_app(
         else _default_request_session()
     )
 
+    load_balancer_logger = (
+        configure_load_balancer_logging(
+            app,
+            log_dir=log_dir,
+        )
+    )
+
     registry = TargetRegistry(resolved_config_path)
     monitor = HealthMonitor(
         registry,
         request_get=session.get,
         interval=5.0,
+        logger=load_balancer_logger,
     )
     selector = RoundRobinSelector()
 
@@ -355,6 +425,15 @@ def create_load_balancer_app(
         first_target = selector.choose(states)
 
         if first_target is None:
+            load_balancer_logger.error(
+                (
+                    "event=no_healthy_backend "
+                    "method=%s path=%s status=503"
+                ),
+                request.method,
+                request.path,
+            )
+
             return (
                 jsonify(
                     {
@@ -413,7 +492,34 @@ def create_load_balancer_app(
                         "details": str(error),
                     }
                 )
+
+                load_balancer_logger.warning(
+                    (
+                        "event=backend_connection_failed "
+                        "backend=%s method=%s path=%s "
+                        "details=%s"
+                    ),
+                    target["name"],
+                    request.method,
+                    request.path,
+                    str(error),
+                )
+
                 continue
+
+            if connection_errors:
+                load_balancer_logger.info(
+                    (
+                        "event=request_rerouted "
+                        "failed_backend=%s "
+                        "selected_backend=%s "
+                        "method=%s path=%s"
+                    ),
+                    connection_errors[-1]["backend"],
+                    target["name"],
+                    request.method,
+                    request.path,
+                )
 
             return Response(
                 upstream_response.content,
@@ -422,6 +528,17 @@ def create_load_balancer_app(
                     upstream_response.headers
                 ),
             )
+
+        load_balancer_logger.error(
+            (
+                "event=all_backends_unreachable "
+                "method=%s path=%s attempts=%s "
+                "status=502"
+            ),
+            request.method,
+            request.path,
+            len(connection_errors),
+        )
 
         return (
             jsonify(
