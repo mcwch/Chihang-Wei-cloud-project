@@ -47,6 +47,7 @@ def get_cart_summary():
 
     cart_items = []
     cart_total = Decimal("0.00")
+    cleaned_cart = {}
 
     for product_id, stored_quantity in cart.items():
         product = products_by_id.get(int(product_id))
@@ -55,6 +56,17 @@ def get_cart_summary():
             continue
 
         quantity = int(stored_quantity)
+
+        if quantity <= 0:
+            continue
+
+        quantity = min(quantity, product.stock)
+
+        if quantity <= 0:
+            continue
+
+        cleaned_cart[str(product.id)] = quantity
+
         subtotal = product.price * quantity
         cart_total += subtotal
 
@@ -65,6 +77,10 @@ def get_cart_summary():
                 "subtotal": subtotal,
             }
         )
+
+    if cleaned_cart != cart:
+        session["cart"] = cleaned_cart
+        session.modified = True
 
     return cart_items, cart_total
 

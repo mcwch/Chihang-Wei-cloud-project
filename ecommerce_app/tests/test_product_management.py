@@ -575,3 +575,49 @@ def test_admin_product_page_shows_archive_and_restore_actions():
 
     assert "Archive" in html
     assert "Restore" in html
+
+
+def test_admin_navigation_links_to_product_management():
+    app = create_app({"TESTING": True})
+    client = app.test_client()
+    sign_in_admin(client)
+
+    response = client.get("/")
+    html = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert "Manage Products" in html
+    assert 'href="/admin/products"' in html
+
+
+def test_archived_product_is_removed_from_existing_cart():
+    product_name = "Archived Existing Cart Product"
+
+    app = create_app({"TESTING": True})
+    product_id = create_managed_product(app, product_name)
+
+    client = app.test_client()
+
+    add_response = client.post(
+        f"/cart/add/{product_id}",
+        data={"quantity": "2"},
+    )
+
+    assert add_response.status_code == 302
+
+    set_product_active_status(
+        app,
+        product_id,
+        False,
+    )
+
+    cart_response = client.get("/cart")
+
+    assert cart_response.status_code == 200
+    assert product_name.encode() not in cart_response.data
+    html = " ".join(cart_response.get_data(as_text=True).split())
+    assert "Cart (0)" in html
+
+    with client.session_transaction() as customer_session:
+        cart = customer_session.get("cart", {})
+        assert str(product_id) not in cart
