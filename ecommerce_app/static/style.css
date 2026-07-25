@@ -1217,3 +1217,100 @@ nav a:hover,
     background: #fef2f2;
     border-color: #fecaca;
 }
+
+/* Product visual placeholders */
+
+.product-visual {
+    display: grid;
+    min-height: 170px;
+    margin: -24px -24px 24px;
+    place-items: center;
+    overflow: hidden;
+    background:
+        radial-gradient(
+            circle at 72% 24%,
+            rgba(255, 255, 255, 0.32),
+            transparent 30%
+        ),
+        linear-gradient(
+            135deg,
+            #dbeafe 0%,
+            #c7d2fe 48%,
+            #ddd6fe 100%
+        );
+    border-bottom: 1px solid #cbd5e1;
+    border-radius: 14px 14px 0 0;
+}
+
+.product-icon {
+    display: inline-block;
+    font-size: 4.5rem;
+    line-height: 1;
+    filter: drop-shadow(
+        0 12px 16px rgba(30, 41, 59, 0.18)
+    );
+    transition: transform 180ms ease;
+}
+
+.product-card:hover .product-icon {
+    transform: scale(1.08) rotate(-2deg);
+}
+
+.product-detail-layout {
+    display: grid;
+    grid-template-columns: minmax(260px, 0.8fr) minmax(0, 1.2fr);
+    align-items: stretch;
+    gap: 30px;
+    margin-bottom: 70px;
+}
+
+.product-detail-layout .product-detail {
+    max-width: none;
+    margin: 0;
+}
+
+.product-detail-visual {
+    display: grid;
+    min-height: 460px;
+    place-items: center;
+    overflow: hidden;
+    background:
+        radial-gradient(
+            circle at 70% 22%,
+            rgba(255, 255, 255, 0.38),
+            transparent 28%
+        ),
+        linear-gradient(
+            145deg,
+            #dbeafe 0%,
+            #bfdbfe 36%,
+            #c4b5fd 100%
+        );
+    border: 1px solid #cbd5e1;
+    border-radius: 18px;
+    box-shadow: 0 16px 36px rgba(15, 23, 42, 0.12);
+}
+
+.product-detail-icon {
+    display: inline-block;
+    font-size: clamp(7rem, 16vw, 11rem);
+    line-height: 1;
+    filter: drop-shadow(
+        0 22px 24px rgba(30, 41, 59, 0.2)
+    );
+}
+
+@media (max-width: 780px) {
+    .product-detail-layout {
+        grid-template-columns: 1fr;
+        gap: 22px;
+    }
+
+    .product-detail-visual {
+        min-height: 300px;
+    }
+
+    .product-detail-icon {
+        font-size: 7rem;
+    }
+}

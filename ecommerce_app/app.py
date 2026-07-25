@@ -24,6 +24,7 @@ from flask import (
 
 from config import Config
 from logging_config import configure_application_logging
+from product_visuals import get_product_icon
 from models import Order, OrderItem, Product, db
 
 
@@ -134,6 +135,10 @@ def create_app(test_config=None):
         )
 
     db.init_app(app)
+
+    app.jinja_env.globals[
+        "product_icon"
+    ] = get_product_icon
 
     application_logger = configure_application_logging(app)
 

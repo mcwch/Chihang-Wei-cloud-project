@@ -42,6 +42,15 @@
         <div class="product-grid">
             {% for product in products %}
                 <article class="product-card">
+                    <div class="product-visual">
+                        <span
+                            class="product-icon"
+                            aria-hidden="true"
+                        >
+                            {{ product_icon(product.name, product.category) }}
+                        </span>
+                    </div>
+
                     <div class="product-card-body">
                         <div class="product-category">
                             {{ product.category }}
