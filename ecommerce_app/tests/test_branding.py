@@ -12,7 +12,7 @@ def test_customer_homepage_uses_novagear_branding():
     assert "NovaGear" in html
     assert "Upgrade Your Everyday Tech" in html
     assert (
-        "Smart accessories for work, travel, and everyday life."
+        "Smart accessories designed for work, travel, and life on the go."
         in html
     )
 

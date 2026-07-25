@@ -1,4 +1,4 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
 
 {% block title %}Shop | NovaGear{% endblock %}
 
@@ -10,7 +10,7 @@
         <h1>Upgrade Your Everyday Tech</h1>
 
         <p class="hero-description">
-            Smart accessories for work, travel, and everyday life.
+            Smart accessories designed for work, travel, and life on the go.
         </p>
 
         <div class="hero-actions">
@@ -22,7 +22,7 @@
             </a>
 
             <span class="hero-offer">
-                Summer Sale: 20% off selected items
+                Explore practical tech accessories for every setup
             </span>
         </div>
     </div>
@@ -60,9 +60,15 @@
                                 ${{ "%.2f"|format(product.price) }}
                             </p>
 
-                            <p class="stock-badge">
-                                In Stock: {{ product.stock }}
-                            </p>
+                            {% if product.stock > 0 %}
+                                <p class="stock-badge">
+                                    In Stock: {{ product.stock }}
+                                </p>
+                            {% else %}
+                                <p class="stock-badge out-of-stock-badge">
+                                    Out of Stock
+                                </p>
+                            {% endif %}
                         </div>
 
                         <a

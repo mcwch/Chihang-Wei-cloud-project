@@ -51,3 +51,39 @@ def test_homepage_modern_store_styles_are_defined():
     assert "height: 100%" in stylesheet
     assert "margin-top: auto" in stylesheet
     assert "transform: translateY(-4px)" in stylesheet
+
+
+def test_homepage_uses_final_customer_copy():
+    template = read_home_template()
+
+    assert (
+        "Smart accessories designed for work, travel, "
+        "and life on the go."
+        in template
+    )
+
+    assert (
+        "Explore practical tech accessories "
+        "for every setup"
+        in template
+    )
+
+    assert "Summer Sale" not in template
+
+
+def test_homepage_distinguishes_out_of_stock_products():
+    template = read_home_template()
+
+    assert "{% if product.stock > 0 %}" in template
+    assert "In Stock: {{ product.stock }}" in template
+    assert "Out of Stock" in template
+
+
+def test_footer_uses_html_copyright_entity():
+    base_template = (
+        PROJECT_ROOT / "templates" / "base.html"
+    ).read_text(encoding="utf-8-sig")
+
+    assert "&copy; 2026 NovaGear. All rights reserved." in (
+        base_template
+    )

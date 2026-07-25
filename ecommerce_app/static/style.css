@@ -1211,3 +1211,9 @@ nav a:hover,
         grid-template-columns: 1fr;
     }
 }
+
+.out-of-stock-badge {
+    color: #991b1b;
+    background: #fef2f2;
+    border-color: #fecaca;
+}
