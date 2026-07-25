@@ -1,6 +1,6 @@
 from collections import deque
 from datetime import datetime, timezone
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from functools import wraps
 from hmac import compare_digest
 from threading import Lock
@@ -397,6 +397,117 @@ def create_app(test_config=None):
         return render_template(
             "admin_products.html",
             products=products,
+        )
+
+    @app.route(
+        "/admin/products/new",
+        methods=["GET", "POST"],
+    )
+    @admin_required
+    def admin_product_new():
+        form_values = {
+            "name": "",
+            "description": "",
+            "price": "",
+            "stock": "",
+            "category": "",
+        }
+        error_message = None
+
+        if request.method == "POST":
+            form_values = {
+                field: request.form.get(field, "").strip()
+                for field in form_values
+            }
+
+            name = form_values["name"]
+            description = form_values["description"]
+            category = form_values["category"]
+
+            if not name:
+                error_message = "Product name is required."
+
+            elif not description:
+                error_message = "Product description is required."
+
+            elif not category:
+                error_message = "Product category is required."
+
+            else:
+                try:
+                    price = Decimal(form_values["price"])
+                except (InvalidOperation, ValueError):
+                    price = None
+
+                if (
+                    price is None
+                    or not price.is_finite()
+                    or price < 0
+                ):
+                    error_message = (
+                        "Please enter a valid non-negative price."
+                    )
+
+            if error_message is None:
+                try:
+                    stock = int(form_values["stock"])
+                except (TypeError, ValueError):
+                    stock = None
+
+                if stock is None or stock < 0:
+                    error_message = (
+                        "Please enter a valid non-negative "
+                        "stock quantity."
+                    )
+
+            if error_message is None:
+                existing_product = Product.query.filter_by(
+                    name=name
+                ).first()
+
+                if existing_product is not None:
+                    error_message = (
+                        "A product with this name already exists."
+                    )
+
+            if error_message is not None:
+                return (
+                    render_template(
+                        "admin_product_form.html",
+                        page_title="Add Product",
+                        submit_label="Create Product",
+                        form_values=form_values,
+                        error_message=error_message,
+                    ),
+                    400,
+                )
+
+            product = Product(
+                name=name,
+                description=description,
+                price=price,
+                stock=stock,
+                category=category,
+                image_url=None,
+                is_active=True,
+            )
+
+            db.session.add(product)
+            db.session.commit()
+
+            add_audit_event(
+                "Product Created",
+                f"{product.name} was added to the catalogue.",
+            )
+
+            return redirect(url_for("admin_products"))
+
+        return render_template(
+            "admin_product_form.html",
+            page_title="Add Product",
+            submit_label="Create Product",
+            form_values=form_values,
+            error_message=error_message,
         )
 
     @app.route("/")

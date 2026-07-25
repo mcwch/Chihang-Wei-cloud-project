@@ -1,0 +1,99 @@
+﻿{% extends "base.html" %}
+
+{% block title %}{{ page_title }} | NovaGear{% endblock %}
+
+{% block content %}
+<section class="hero admin-hero">
+    <p class="eyebrow">Catalogue Administration</p>
+    <h1>{{ page_title }}</h1>
+    <p>
+        Enter the product information below to update the
+        NovaGear catalogue.
+    </p>
+</section>
+
+<section class="product-form-card">
+    {% if error_message %}
+        <div class="error-message">
+            {{ error_message }}
+        </div>
+    {% endif %}
+
+    <form class="checkout-form product-form" method="post">
+        <div class="form-field">
+            <label for="name">Product Name</label>
+            <input
+                id="name"
+                name="name"
+                type="text"
+                value="{{ form_values['name'] }}"
+                maxlength="200"
+                required
+            >
+        </div>
+
+        <div class="form-field">
+            <label for="description">Description</label>
+            <textarea
+                id="description"
+                name="description"
+                rows="5"
+                required
+            >{{ form_values['description'] }}</textarea>
+        </div>
+
+        <div class="product-form-grid">
+            <div class="form-field">
+                <label for="price">Price</label>
+                <input
+                    id="price"
+                    name="price"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value="{{ form_values['price'] }}"
+                    required
+                >
+            </div>
+
+            <div class="form-field">
+                <label for="stock">Stock Quantity</label>
+                <input
+                    id="stock"
+                    name="stock"
+                    type="number"
+                    min="0"
+                    step="1"
+                    value="{{ form_values['stock'] }}"
+                    required
+                >
+            </div>
+        </div>
+
+        <div class="form-field">
+            <label for="category">Category</label>
+            <input
+                id="category"
+                name="category"
+                type="text"
+                value="{{ form_values['category'] }}"
+                maxlength="100"
+                required
+            >
+        </div>
+
+        <div class="product-form-actions">
+            <button class="button" type="submit">
+                {{ submit_label }}
+            </button>
+
+            <a
+                class="secondary-button"
+                href="{{ url_for('admin_products') }}"
+            >
+                Cancel
+            </a>
+        </div>
+    </form>
+</section>
+{% endblock %}
