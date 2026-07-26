@@ -211,9 +211,10 @@ def test_orders_page_links_to_order_detail():
         db.session.commit()
 
 
-def test_navigation_contains_orders_link():
+def test_admin_navigation_contains_orders_link():
     app = create_app({"TESTING": True})
     client = app.test_client()
+    sign_in_admin(client)
 
     response = client.get("/")
 
