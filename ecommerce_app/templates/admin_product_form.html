@@ -1,9 +1,10 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
 
 {% block title %}{{ page_title }} | NovaGear{% endblock %}
 
 {% block content %}
-<section class="hero admin-hero">
+<div class="page-shell">
+<section class="hero admin-hero page-header">
     <p class="eyebrow">Catalogue Administration</p>
     <h1>{{ page_title }}</h1>
     <p>
@@ -12,9 +13,9 @@
     </p>
 </section>
 
-<section class="product-form-card">
+<section class="product-form-card form-card">
     {% if error_message %}
-        <div class="error-message">
+        <div class="error-message status-message status-message-error">
             {{ error_message }}
         </div>
     {% endif %}
@@ -96,4 +97,5 @@
         </div>
     </form>
 </section>
+</div>
 {% endblock %}

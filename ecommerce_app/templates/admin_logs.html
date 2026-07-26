@@ -1,8 +1,9 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
 
 {% block title %}Admin Logs{% endblock %}
 
 {% block content %}
+<div class="page-shell">
 <section class="page-header">
     <h1>Admin Logs</h1>
     <p>
@@ -11,7 +12,7 @@
     </p>
 </section>
 
-<section class="admin-log-section">
+<section class="admin-log-section content-card">
     <h2>Security Audit Log</h2>
     <p>
         Recent authentication, access, product-management,
@@ -22,7 +23,7 @@
     {% if audit_entries %}
         <div class="order-list">
             {% for entry in audit_entries %}
-                <article class="order-card">
+                <article class="order-card data-card">
                     <h3>{{ entry["event_type"] }}</h3>
 
                     <p>
@@ -43,11 +44,13 @@
             {% endfor %}
         </div>
     {% else %}
-        <p>No audit events have been recorded yet.</p>
+        <div class="empty-state">
+            <p>No audit events have been recorded yet.</p>
+        </div>
     {% endif %}
 </section>
 
-<section class="admin-log-section">
+<section class="admin-log-section content-card">
     <h2>Application Log</h2>
     <p>
         The latest application requests, warnings, and
@@ -61,11 +64,13 @@
             {% endfor %}
         </div>
     {% else %}
-        <p>No application log entries are available.</p>
+        <div class="empty-state">
+            <p>No application log entries are available.</p>
+        </div>
     {% endif %}
 </section>
 
-<section class="admin-log-section">
+<section class="admin-log-section content-card">
     <h2>Load Balancer Log</h2>
     <p>
         The latest backend health transitions, connection
@@ -80,7 +85,10 @@
             {% endfor %}
         </div>
     {% else %}
-        <p>No load balancer log entries are available.</p>
+        <div class="empty-state">
+            <p>No load balancer log entries are available.</p>
+        </div>
     {% endif %}
 </section>
+</div>
 {% endblock %}

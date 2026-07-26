@@ -1401,3 +1401,158 @@ nav a:hover,
         grid-template-columns: 1fr;
     }
 }
+
+/* Shared page consistency layer */
+
+.page-shell {
+    padding: 42px 0 70px;
+}
+
+.page-shell > :first-child {
+    margin-top: 0;
+}
+
+.narrow-page {
+    width: min(680px, 100%);
+    margin: 0 auto;
+}
+
+.page-shell .page-header,
+.page-shell .admin-hero {
+    margin-bottom: 28px;
+    padding: 0;
+}
+
+.page-header-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+}
+
+.content-card,
+.form-card,
+.data-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    box-shadow: 0 10px 28px rgba(15, 23, 42, 0.07);
+}
+
+.content-card {
+    padding: 26px;
+}
+
+.form-card {
+    width: min(760px, 100%);
+    padding: 30px;
+}
+
+.data-card {
+    padding: 22px;
+}
+
+.content-card-inverse {
+    color: #ffffff;
+    background: #111827;
+    border-color: #1e293b;
+}
+
+.status-message {
+    margin-bottom: 22px;
+    padding: 14px 18px;
+    border: 1px solid transparent;
+    border-radius: 10px;
+}
+
+.status-message-error {
+    color: #991b1b;
+    background: #fef2f2;
+    border-color: #fecaca;
+}
+
+.empty-state {
+    padding: 38px 28px;
+    background: #ffffff;
+    border: 1px dashed #cbd5e1;
+    border-radius: 16px;
+    text-align: center;
+    box-shadow: none;
+}
+
+.empty-state > :first-child {
+    margin-top: 0;
+}
+
+.empty-state > :last-child {
+    margin-bottom: 0;
+}
+
+.admin-table-wrapper,
+.persistent-log-list,
+.content-card,
+.form-card,
+.data-card {
+    min-width: 0;
+}
+
+.admin-table-wrapper,
+.persistent-log-list {
+    max-width: 100%;
+}
+
+.content-card,
+.form-card,
+.data-card,
+.order-card,
+.cart-item,
+.checkout-summary,
+.success-card {
+    overflow-wrap: anywhere;
+}
+
+.page-shell .admin-log-section {
+    padding: 26px;
+}
+
+.page-shell .admin-log-section + .admin-log-section {
+    margin-top: 24px;
+}
+
+.page-shell .product-form-card,
+.page-shell .success-card {
+    margin-bottom: 0;
+}
+
+.product-detail-page .back-link {
+    margin-top: 0;
+}
+
+@media (max-width: 760px) {
+    .page-shell {
+        padding: 28px 0 50px;
+    }
+
+    .content-card,
+    .form-card,
+    .data-card,
+    .page-shell .admin-log-section {
+        padding: 21px;
+        border-radius: 13px;
+    }
+
+    .page-header-actions {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .admin-table-wrapper {
+        overflow-x: auto;
+    }
+
+    .status-update-form,
+    .status-update-form select,
+    .status-update-form button {
+        width: 100%;
+    }
+}

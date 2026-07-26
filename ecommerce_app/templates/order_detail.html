@@ -3,11 +3,13 @@
 {% block title %}Order #{{ order.id }}{% endblock %}
 
 {% block content %}
+<div class="page-shell">
 <section class="page-header">
     <h1>Order #{{ order.id }}</h1>
     <p>Status: {{ order.status }}</p>
 
     <form
+        class="status-update-form"
         action="{{ url_for('update_order_status', order_id=order.id) }}"
         method="post"
     >
@@ -36,7 +38,7 @@
     </form>
 </section>
 
-<section class="order-card">
+<section class="order-card content-card">
     <h2>Customer Information</h2>
 
     <p><strong>Name:</strong> {{ order.customer_name }}</p>
@@ -48,7 +50,7 @@
     </p>
 </section>
 
-<section class="order-card">
+<section class="order-card content-card">
     <h2>Order Items</h2>
 
     {% for item in order.items %}
@@ -62,4 +64,5 @@
         </div>
     {% endfor %}
 </section>
+</div>
 {% endblock %}

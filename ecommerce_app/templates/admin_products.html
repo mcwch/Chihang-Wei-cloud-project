@@ -3,7 +3,8 @@
 {% block title %}Product Management | NovaGear{% endblock %}
 
 {% block content %}
-<section class="hero admin-hero">
+<div class="page-shell">
+<section class="hero admin-hero page-header">
     <p class="eyebrow">Catalogue Administration</p>
     <h1>Product Management</h1>
     <p>
@@ -12,7 +13,7 @@
     </p>
 </section>
 
-<section>
+<section class="content-card">
     <div class="section-heading">
         <div>
             <h2>All Products</h2>
@@ -116,4 +117,5 @@
         </div>
     {% endif %}
 </section>
+</div>
 {% endblock %}

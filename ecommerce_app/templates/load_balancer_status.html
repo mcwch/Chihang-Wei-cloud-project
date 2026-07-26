@@ -2,148 +2,202 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+
     <meta
         name="viewport"
         content="width=device-width, initial-scale=1"
     >
+
     <title>Load Balancer Status</title>
 
     <style>
+        * {
+            box-sizing: border-box;
+        }
+
         body {
             margin: 0;
-            padding: 2rem;
-            font-family: Arial, sans-serif;
-            background: #f4f6f8;
             color: #1f2933;
+            background: #f4f6f8;
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
         }
 
         .container {
-            max-width: 960px;
+            width: min(960px, calc(100% - 40px));
             margin: 0 auto;
         }
 
-        h1 {
-            margin-bottom: 0.5rem;
+        .page-shell {
+            padding: 42px 0 70px;
+        }
+
+        .page-header {
+            margin-bottom: 28px;
+        }
+
+        .page-header h1 {
+            margin: 0 0 8px;
+            font-size: clamp(2rem, 5vw, 3rem);
+            line-height: 1.2;
         }
 
         .summary {
-            margin-bottom: 1.5rem;
+            margin: 0;
             color: #52606d;
         }
 
-        .config-error {
+        .content-card {
+            min-width: 0;
+            padding: 1.25rem;
+            overflow-wrap: anywhere;
+            background: #ffffff;
+            border: 1px solid #d9e2ec;
+            border-radius: 14px;
+            box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+        }
+
+        .status-message {
             margin-bottom: 1.5rem;
             padding: 1rem;
-            border: 1px solid #c62828;
-            border-radius: 8px;
-            background: #ffebee;
+            border-radius: 10px;
+        }
+
+        .status-message-error {
+            color: #991b1b;
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+        }
+
+        .config-error strong {
+            display: block;
+            margin-bottom: 4px;
         }
 
         .target-card {
             margin-bottom: 1rem;
-            padding: 1.25rem;
-            border: 1px solid #d9e2ec;
-            border-radius: 10px;
-            background: white;
         }
 
         .target-header {
             display: flex;
-            justify-content: space-between;
             align-items: center;
+            justify-content: space-between;
             gap: 1rem;
+        }
+
+        .target-header h2 {
+            margin: 0;
         }
 
         .status {
             padding: 0.3rem 0.7rem;
             border-radius: 999px;
             font-weight: bold;
+            white-space: nowrap;
         }
 
         .healthy {
-            background: #e8f5e9;
-            color: #1b5e20;
+            color: #166534;
+            background: #dcfce7;
         }
 
         .unhealthy {
-            background: #ffebee;
-            color: #b71c1c;
+            color: #991b1b;
+            background: #fee2e2;
         }
 
         .details {
             margin-top: 0.8rem;
-            line-height: 1.6;
         }
 
         .error-text {
-            color: #b71c1c;
+            color: #b91c1c;
         }
 
-        .empty {
-            padding: 1rem;
-            border-radius: 8px;
-            background: white;
+        .empty-state {
+            text-align: center;
+        }
+
+        @media (max-width: 600px) {
+            .page-shell {
+                padding: 28px 0 50px;
+            }
+
+            .target-header {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+
+            .content-card {
+                padding: 1rem;
+            }
         }
     </style>
 </head>
 
 <body>
-    <main class="container">
-        <h1>Load Balancer Status</h1>
+    <main class="page-shell">
+        <div class="container">
+            <header class="page-header">
+                <h1>Load Balancer Status</h1>
 
-        <p class="summary">
-            Current backend health and configuration status.
-        </p>
+                <p class="summary">
+                    Current backend health and configuration status.
+                </p>
+            </header>
 
-        {% if config_error %}
-            <section class="config-error">
-                <strong>Configuration error</strong>
-                <div>{{ config_error }}</div>
-            </section>
-        {% endif %}
-
-        {% if states %}
-            {% for state in states %}
-                <section class="target-card">
-                    <div class="target-header">
-                        <h2>{{ state["name"] }}</h2>
-
-                        {% if state["healthy"] %}
-                            <span class="status healthy">
-                                Healthy
-                            </span>
-                        {% else %}
-                            <span class="status unhealthy">
-                                Unhealthy
-                            </span>
-                        {% endif %}
-                    </div>
-
-                    <div class="details">
-                        <div>
-                            <strong>URL:</strong>
-                            {{ state["url"] }}
-                        </div>
-
-                        <div>
-                            <strong>Last checked:</strong>
-                            {{ state["last_checked"] }}
-                        </div>
-
-                        {% if state["error"] %}
-                            <div class="error-text">
-                                <strong>Error:</strong>
-                                {{ state["error"] }}
-                            </div>
-                        {% endif %}
-                    </div>
+            {% if config_error %}
+                <section
+                    class="status-message status-message-error config-error"
+                >
+                    <strong>Configuration error</strong>
+                    <div>{{ config_error }}</div>
                 </section>
-            {% endfor %}
-        {% else %}
-            <p class="empty">
-                No backend targets are currently configured.
-            </p>
-        {% endif %}
+            {% endif %}
+
+            {% if states %}
+                {% for state in states %}
+                    <section class="content-card target-card">
+                        <div class="target-header">
+                            <h2>{{ state["name"] }}</h2>
+
+                            {% if state["healthy"] %}
+                                <span class="status healthy">
+                                    Healthy
+                                </span>
+                            {% else %}
+                                <span class="status unhealthy">
+                                    Unhealthy
+                                </span>
+                            {% endif %}
+                        </div>
+
+                        <div class="details">
+                            <div>
+                                <strong>URL:</strong>
+                                {{ state["url"] }}
+                            </div>
+
+                            <div>
+                                <strong>Last checked:</strong>
+                                {{ state["last_checked"] }}
+                            </div>
+
+                            {% if state["error"] %}
+                                <div class="error-text">
+                                    <strong>Error:</strong>
+                                    {{ state["error"] }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </section>
+                {% endfor %}
+            {% else %}
+                <div class="content-card empty-state">
+                    No backend targets are currently configured.
+                </div>
+            {% endif %}
+        </div>
     </main>
 </body>
 </html>

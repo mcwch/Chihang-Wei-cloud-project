@@ -1,8 +1,9 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
 
 {% block title %}{{ product.name }} | NovaGear{% endblock %}
 
 {% block content %}
+<div class="page-shell product-detail-page">
 <a class="back-link" href="{{ url_for('home') }}">
     &larr; Back to Product List
 </a>
@@ -17,7 +18,7 @@
         </span>
     </div>
 
-    <div class="product-detail">
+    <div class="product-detail content-card">
         <div class="product-category">
             {{ product.category }}
         </div>
@@ -87,4 +88,5 @@
         {% endif %}
     </div>
 </section>
+</div>
 {% endblock %}
