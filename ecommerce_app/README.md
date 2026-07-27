@@ -51,27 +51,36 @@ A full-stack ecommerce application built with Flask and MySQL. The project combi
 
 ## Architecture
 
-```text
-Client Browser
-      |
-      v
-Load Balancer :8000
-      |
-      +---------------------+
-      |                     |
-      v                     v
-Flask Instance 1 :5000   Flask Instance 2 :5001
-      |                     |
-      +----------+----------+
-                 |
-                 v
-             MySQL Database
+```mermaid
+flowchart TB
+    Client["Client Browser<br/>Storefront and administrator interface"]
+    LB["Load Balancer<br/>Port 8000<br/>Round-robin routing and health checks"]
 
-Order Confirmation
-      |
-      v
-Optional Cloudflare Worker
+    subgraph ApplicationTier["Flask Application Tier"]
+        direction LR
+        App1["Instance 1<br/>Port 5000"]
+        App2["Instance 2<br/>Port 5001"]
+    end
+
+    DB["MySQL Database<br/>Products, inventory, orders, and order items"]
+    Worker["Cloudflare Worker<br/>Optional order confirmation"]
+    Logs["Monitoring and Logs<br/>Metrics, audit events, and load-balancer logs"]
+
+    Client -->|HTTP requests| LB
+    LB -->|Healthy traffic| App1
+    LB -->|Healthy traffic| App2
+
+    App1 --> DB
+    App2 --> DB
+
+    App1 -. Optional serverless call .-> Worker
+    App2 -. Optional serverless call .-> Worker
+
+    LB -. Health and routing events .-> Logs
+    App1 -. Metrics and audit events .-> Logs
+    App2 -. Metrics and audit events .-> Logs
 ```
+
 
 The load balancer checks each backend through `/health` every five seconds and forwards requests only to healthy instances. Requests are distributed with round-robin selection. If a connection fails before a backend responds, another healthy instance is attempted.
 
