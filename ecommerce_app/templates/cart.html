@@ -1,9 +1,9 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
 
-{% block title %}Shopping Cart | Simple Ecommerce Store{% endblock %}
+{% block title %}Shopping Cart | NovaGear{% endblock %}
 
 {% block content %}
-<section class="cart-page">
+<section class="cart-page page-shell">
     <div class="section-heading">
         <h1>Shopping Cart</h1>
 
@@ -15,7 +15,7 @@
     {% if cart_items %}
         <div class="cart-list">
             {% for item in cart_items %}
-                <article class="cart-item">
+                <article class="cart-item content-card">
                     <div class="cart-product-info">
                         <div class="product-category">
                             {{ item.product.category }}
@@ -99,7 +99,7 @@
             {% endfor %}
         </div>
 
-        <section class="cart-summary">
+        <section class="cart-summary content-card content-card-inverse">
             <div>
                 <span>Order Total</span>
 

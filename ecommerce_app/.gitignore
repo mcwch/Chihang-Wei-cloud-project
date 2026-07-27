@@ -5,3 +5,7 @@ __pycache__/
 .env
 .pytest_cache/
 app_backup.py
+
+# Runtime logs
+logs/*.log
+logs/*.log.*

@@ -1,75 +1,92 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
 
-{% block title %}{{ product.name }} | Simple Ecommerce Store{% endblock %}
+{% block title %}{{ product.name }} | NovaGear{% endblock %}
 
 {% block content %}
+<div class="page-shell product-detail-page">
 <a class="back-link" href="{{ url_for('home') }}">
-    ← Back to Product List
+    &larr; Back to Product List
 </a>
 
-<section class="product-detail">
-    <div class="product-category">
-        {{ product.category }}
-    </div>
-
-    <h1>{{ product.name }}</h1>
-
-    <p class="detail-price">
-        ${{ "%.2f"|format(product.price) }}
-    </p>
-
-    <p class="detail-description">
-        {{ product.description }}
-    </p>
-
-    <div class="inventory-panel">
-        <div>
-            <span class="label">Stock Quantity</span>
-            <strong>{{ product.stock }}</strong>
-        </div>
-
-        <div>
-            <span class="label">Inventory Status</span>
-
-            {% if product.stock > 0 %}
-                <strong class="available">Available</strong>
-            {% else %}
-                <strong class="out-of-stock">Out of Stock</strong>
-            {% endif %}
-        </div>
-    </div>
-
-    {% if product.stock > 0 %}
-        <form
-            class="add-cart-form"
-            method="post"
-            action="{{ url_for(
-                'add_to_cart',
-                product_id=product.id
-            ) }}"
+<section class="product-detail-layout">
+    <div class="product-detail-visual">
+        <span
+            class="product-detail-icon"
+            aria-hidden="true"
         >
-            <label for="quantity">
-                Quantity
-            </label>
+            {{ product_icon(product.name, product.category) }}
+        </span>
+    </div>
 
-            <input
-                id="quantity"
-                name="quantity"
-                type="number"
-                value="1"
-                min="1"
-                max="{{ product.stock }}"
-                required
-            >
+    <div class="product-detail content-card">
+        <div class="product-category">
+            {{ product.category }}
+        </div>
 
-            <button class="button" type="submit">
-                Add to Cart
-            </button>
-        </form>
-    {% else %}
-        <p class="out-of-stock">
-            This product is currently unavailable.
+        <h1>{{ product.name }}</h1>
+
+        <p class="detail-price">
+            ${{ "%.2f"|format(product.price) }}
         </p>
-    {% endif %}
+
+        <p class="detail-description">
+            {{ product.description }}
+        </p>
+
+        <div class="inventory-panel">
+            <div>
+                <span class="label">Stock Quantity</span>
+                <strong>{{ product.stock }}</strong>
+            </div>
+
+            <div>
+                <span class="label">Inventory Status</span>
+
+                {% if product.stock > 0 %}
+                    <strong class="available">
+                        Available
+                    </strong>
+                {% else %}
+                    <strong class="out-of-stock">
+                        Out of Stock
+                    </strong>
+                {% endif %}
+            </div>
+        </div>
+
+        {% if product.stock > 0 %}
+            <form
+                class="add-cart-form"
+                method="post"
+                action="{{ url_for(
+                    'add_to_cart',
+                    product_id=product.id
+                ) }}"
+            >
+                <label for="quantity">
+                    Quantity
+                </label>
+
+                <input
+                    id="quantity"
+                    name="quantity"
+                    type="number"
+                    value="1"
+                    min="1"
+                    max="{{ product.stock }}"
+                    required
+                >
+
+                <button class="button" type="submit">
+                    Add to Cart
+                </button>
+            </form>
+        {% else %}
+            <p class="out-of-stock">
+                This product is currently unavailable.
+            </p>
+        {% endif %}
+    </div>
 </section>
+</div>
 {% endblock %}

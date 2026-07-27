@@ -1,40 +1,94 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
 
-{% block title %}Security Audit Log{% endblock %}
+{% block title %}Admin Logs{% endblock %}
 
 {% block content %}
+<div class="page-shell">
 <section class="page-header">
-    <h1>Security Audit Log</h1>
+    <h1>Admin Logs</h1>
     <p>
-        Recent authentication, access, and order-management
-        events for this application instance.
+        Review recent security events, application requests,
+        errors, backend health changes, and failover activity.
     </p>
 </section>
 
-{% if audit_entries %}
-    <div class="order-list">
-        {% for entry in audit_entries %}
-            <article class="order-card">
-                <h2>{{ entry["event_type"] }}</h2>
+<section class="admin-log-section content-card">
+    <h2>Security Audit Log</h2>
+    <p>
+        Recent authentication, access, product-management,
+        and order-management events for this application
+        instance.
+    </p>
 
-                <p>
-                    <strong>Time:</strong>
-                    {{ entry["timestamp"] }}
-                </p>
+    {% if audit_entries %}
+        <div class="order-list">
+            {% for entry in audit_entries %}
+                <article class="order-card data-card">
+                    <h3>{{ entry["event_type"] }}</h3>
 
-                <p>
-                    <strong>Details:</strong>
-                    {{ entry["description"] }}
-                </p>
+                    <p>
+                        <strong>Time:</strong>
+                        {{ entry["timestamp"] }}
+                    </p>
 
-                <p>
-                    <strong>Instance:</strong>
-                    {{ entry["instance"] }}
-                </p>
-            </article>
-        {% endfor %}
-    </div>
-{% else %}
-    <p>No audit events have been recorded yet.</p>
-{% endif %}
+                    <p>
+                        <strong>Details:</strong>
+                        {{ entry["description"] }}
+                    </p>
+
+                    <p>
+                        <strong>Instance:</strong>
+                        {{ entry["instance"] }}
+                    </p>
+                </article>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="empty-state">
+            <p>No audit events have been recorded yet.</p>
+        </div>
+    {% endif %}
+</section>
+
+<section class="admin-log-section content-card">
+    <h2>Application Log</h2>
+    <p>
+        The latest application requests, warnings, and
+        unhandled errors. Newest entries appear first.
+    </p>
+
+    {% if application_log_entries %}
+        <div class="persistent-log-list">
+            {% for entry in application_log_entries %}
+                <pre class="persistent-log-entry"><code>{{ entry }}</code></pre>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="empty-state">
+            <p>No application log entries are available.</p>
+        </div>
+    {% endif %}
+</section>
+
+<section class="admin-log-section content-card">
+    <h2>Load Balancer Log</h2>
+    <p>
+        The latest backend health transitions, connection
+        failures, and request rerouting events. Newest entries
+        appear first.
+    </p>
+
+    {% if load_balancer_log_entries %}
+        <div class="persistent-log-list">
+            {% for entry in load_balancer_log_entries %}
+                <pre class="persistent-log-entry"><code>{{ entry }}</code></pre>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="empty-state">
+            <p>No load balancer log entries are available.</p>
+        </div>
+    {% endif %}
+</section>
+</div>
 {% endblock %}

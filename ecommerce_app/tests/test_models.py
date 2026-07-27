@@ -17,6 +17,7 @@ def test_product_model_has_required_columns():
         "stock",
         "category",
         "image_url",
+        "is_active",
     }
 
 

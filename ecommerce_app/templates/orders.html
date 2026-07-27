@@ -3,20 +3,21 @@
 {% block title %}Order Management{% endblock %}
 
 {% block content %}
+<div class="page-shell">
 <section class="page-header">
     <h1>Order Management</h1>
     <p>View, filter, and manage customer orders.</p>
 </section>
 
 <section class="order-statistics">
-    <div class="order-card">
+    <div class="order-card content-card">
         <strong>
             Total Orders: {{ order_statistics["total"] }}
         </strong>
     </div>
 
     {% for status in allowed_statuses %}
-        <div class="order-card">
+        <div class="order-card content-card">
             <strong>
                 {{ status }}:
                 {{ order_statistics[status] }}
@@ -25,7 +26,7 @@
     {% endfor %}
 </section>
 
-<section class="order-filters">
+<section class="order-filters content-card">
     <h2>Filter Orders</h2>
 
     <a href="{{ url_for('orders') }}">
@@ -52,7 +53,7 @@
 {% if orders %}
     <div class="order-list">
         {% for order in orders %}
-            <article class="order-card">
+            <article class="order-card content-card">
                 <h2>
                     <a href="{{ url_for('order_detail', order_id=order.id) }}">
                         Order #{{ order.id }}
@@ -77,6 +78,12 @@
         {% endfor %}
     </div>
 {% else %}
-    <p>No orders match the selected status.</p>
+    <div class="empty-state">
+        <h2>No matching orders</h2>
+        <p>
+            No orders match the selected status.
+        </p>
+    </div>
 {% endif %}
+</div>
 {% endblock %}

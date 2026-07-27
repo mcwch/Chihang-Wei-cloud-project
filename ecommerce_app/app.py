@@ -1,6 +1,7 @@
+from pathlib import Path
 from collections import deque
 from datetime import datetime, timezone
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from functools import wraps
 from hmac import compare_digest
 from threading import Lock
@@ -13,6 +14,7 @@ from sqlalchemy import text
 from flask import (
     Flask,
     g,
+    got_request_exception,
     redirect,
     render_template,
     request,
@@ -21,7 +23,34 @@ from flask import (
 )
 
 from config import Config
+from logging_config import configure_application_logging
+from product_visuals import get_product_icon
 from models import Order, OrderItem, Product, db
+
+
+def read_recent_log_lines(
+    log_file,
+    limit=100,
+):
+    if not log_file:
+        return []
+
+    log_path = Path(log_file)
+
+    try:
+        lines = log_path.read_text(
+            encoding="utf-8-sig",
+        ).splitlines()
+    except (OSError, UnicodeError):
+        return []
+
+    non_empty_lines = [
+        line
+        for line in lines
+        if line.strip()
+    ]
+
+    return list(reversed(non_empty_lines))[:limit]
 
 
 def get_cart_summary():
@@ -36,7 +65,8 @@ def get_cart_summary():
     ]
 
     products = Product.query.filter(
-        Product.id.in_(product_ids)
+        Product.id.in_(product_ids),
+        Product.is_active.is_(True),
     ).all()
 
     products_by_id = {
@@ -46,6 +76,7 @@ def get_cart_summary():
 
     cart_items = []
     cart_total = Decimal("0.00")
+    cleaned_cart = {}
 
     for product_id, stored_quantity in cart.items():
         product = products_by_id.get(int(product_id))
@@ -54,6 +85,17 @@ def get_cart_summary():
             continue
 
         quantity = int(stored_quantity)
+
+        if quantity <= 0:
+            continue
+
+        quantity = min(quantity, product.stock)
+
+        if quantity <= 0:
+            continue
+
+        cleaned_cart[str(product.id)] = quantity
+
         subtotal = product.price * quantity
         cart_total += subtotal
 
@@ -64,6 +106,10 @@ def get_cart_summary():
                 "subtotal": subtotal,
             }
         )
+
+    if cleaned_cart != cart:
+        session["cart"] = cleaned_cart
+        session.modified = True
 
     return cart_items, cart_total
 
@@ -89,6 +135,43 @@ def create_app(test_config=None):
         )
 
     db.init_app(app)
+
+    app.jinja_env.globals[
+        "product_icon"
+    ] = get_product_icon
+
+    application_logger = configure_application_logging(app)
+
+    def log_unhandled_exception(
+        sender,
+        exception,
+        **extra,
+    ):
+        application_logger.error(
+            (
+                "instance=%s method=%s path=%s "
+                "unhandled_exception=%s"
+            ),
+            app.config["INSTANCE_NAME"],
+            request.method,
+            request.path,
+            type(exception).__name__,
+            exc_info=(
+                type(exception),
+                exception,
+                exception.__traceback__,
+            ),
+        )
+
+    got_request_exception.connect(
+        log_unhandled_exception,
+        app,
+        weak=False,
+    )
+
+    app.extensions[
+        "exception_log_handler"
+    ] = log_unhandled_exception
 
     monitoring_state = {
         "started_at": perf_counter(),
@@ -157,6 +240,38 @@ def create_app(test_config=None):
                 monitoring_state["responses_404"] += 1
             elif response.status_code >= 500:
                 monitoring_state["responses_500"] += 1
+
+        if (
+            request.path != "/health"
+            and not request.path.startswith("/static/")
+        ):
+            log_message = (
+                "instance=%s method=%s path=%s "
+                "status=%s response_time_ms=%.2f"
+            )
+            log_arguments = (
+                app.config["INSTANCE_NAME"],
+                request.method,
+                request.path,
+                response.status_code,
+                response_time_ms,
+            )
+
+            if response.status_code >= 500:
+                application_logger.error(
+                    log_message,
+                    *log_arguments,
+                )
+            elif response.status_code >= 400:
+                application_logger.warning(
+                    log_message,
+                    *log_arguments,
+                )
+            else:
+                application_logger.info(
+                    log_message,
+                    *log_arguments,
+                )
 
         return response
 
@@ -304,9 +419,42 @@ def create_app(test_config=None):
         with audit_lock:
             entries = list(reversed(audit_log))
 
+        configured_log_directory = app.config.get(
+            "LOG_DIR"
+        )
+
+        if configured_log_directory:
+            log_directory = Path(
+                configured_log_directory
+            )
+        else:
+            log_directory = (
+                Path(app.root_path) / "logs"
+            )
+
+        application_log_entries = (
+            read_recent_log_lines(
+                app.extensions.get(
+                    "application_log_file"
+                )
+            )
+        )
+
+        load_balancer_log_entries = (
+            read_recent_log_lines(
+                log_directory / "load_balancer.log"
+            )
+        )
+
         return render_template(
             "admin_logs.html",
             audit_entries=entries,
+            application_log_entries=(
+                application_log_entries
+            ),
+            load_balancer_log_entries=(
+                load_balancer_log_entries
+            ),
         )
 
     @app.get("/admin/monitor")
@@ -389,9 +537,288 @@ def create_app(test_config=None):
         )
         return response
 
+    @app.get("/admin/products")
+    @admin_required
+    def admin_products():
+        products = Product.query.order_by(Product.id).all()
+
+        return render_template(
+            "admin_products.html",
+            products=products,
+        )
+
+    @app.route(
+        "/admin/products/new",
+        methods=["GET", "POST"],
+    )
+    @admin_required
+    def admin_product_new():
+        form_values = {
+            "name": "",
+            "description": "",
+            "price": "",
+            "stock": "",
+            "category": "",
+        }
+        error_message = None
+
+        if request.method == "POST":
+            form_values = {
+                field: request.form.get(field, "").strip()
+                for field in form_values
+            }
+
+            name = form_values["name"]
+            description = form_values["description"]
+            category = form_values["category"]
+
+            if not name:
+                error_message = "Product name is required."
+
+            elif not description:
+                error_message = "Product description is required."
+
+            elif not category:
+                error_message = "Product category is required."
+
+            else:
+                try:
+                    price = Decimal(form_values["price"])
+                except (InvalidOperation, ValueError):
+                    price = None
+
+                if (
+                    price is None
+                    or not price.is_finite()
+                    or price < 0
+                ):
+                    error_message = (
+                        "Please enter a valid non-negative price."
+                    )
+
+            if error_message is None:
+                try:
+                    stock = int(form_values["stock"])
+                except (TypeError, ValueError):
+                    stock = None
+
+                if stock is None or stock < 0:
+                    error_message = (
+                        "Please enter a valid non-negative "
+                        "stock quantity."
+                    )
+
+            if error_message is None:
+                existing_product = Product.query.filter_by(
+                    name=name
+                ).first()
+
+                if existing_product is not None:
+                    error_message = (
+                        "A product with this name already exists."
+                    )
+
+            if error_message is not None:
+                return (
+                    render_template(
+                        "admin_product_form.html",
+                        page_title="Add Product",
+                        submit_label="Create Product",
+                        form_values=form_values,
+                        error_message=error_message,
+                    ),
+                    400,
+                )
+
+            product = Product(
+                name=name,
+                description=description,
+                price=price,
+                stock=stock,
+                category=category,
+                image_url=None,
+                is_active=True,
+            )
+
+            db.session.add(product)
+            db.session.commit()
+
+            add_audit_event(
+                "Product Created",
+                f"{product.name} was added to the catalogue.",
+            )
+
+            return redirect(url_for("admin_products"))
+
+        return render_template(
+            "admin_product_form.html",
+            page_title="Add Product",
+            submit_label="Create Product",
+            form_values=form_values,
+            error_message=error_message,
+        )
+
+    @app.route(
+        "/admin/products/<int:product_id>/edit",
+        methods=["GET", "POST"],
+    )
+    @admin_required
+    def admin_product_edit(product_id):
+        product = db.get_or_404(Product, product_id)
+
+        form_values = {
+            "name": product.name,
+            "description": product.description,
+            "price": str(product.price),
+            "stock": str(product.stock),
+            "category": product.category,
+        }
+        error_message = None
+
+        if request.method == "POST":
+            form_values = {
+                field: request.form.get(field, "").strip()
+                for field in form_values
+            }
+
+            name = form_values["name"]
+            description = form_values["description"]
+            category = form_values["category"]
+
+            if not name:
+                error_message = "Product name is required."
+
+            elif not description:
+                error_message = "Product description is required."
+
+            elif not category:
+                error_message = "Product category is required."
+
+            else:
+                try:
+                    price = Decimal(form_values["price"])
+                except (InvalidOperation, ValueError):
+                    price = None
+
+                if (
+                    price is None
+                    or not price.is_finite()
+                    or price < 0
+                ):
+                    error_message = (
+                        "Please enter a valid non-negative price."
+                    )
+
+            if error_message is None:
+                try:
+                    stock = int(form_values["stock"])
+                except (TypeError, ValueError):
+                    stock = None
+
+                if stock is None or stock < 0:
+                    error_message = (
+                        "Please enter a valid non-negative "
+                        "stock quantity."
+                    )
+
+            if error_message is None:
+                duplicate_product = Product.query.filter(
+                    Product.name == name,
+                    Product.id != product.id,
+                ).first()
+
+                if duplicate_product is not None:
+                    error_message = (
+                        "A product with this name already exists."
+                    )
+
+            if error_message is not None:
+                return (
+                    render_template(
+                        "admin_product_form.html",
+                        page_title="Edit Product",
+                        submit_label="Save Changes",
+                        form_values=form_values,
+                        error_message=error_message,
+                    ),
+                    400,
+                )
+
+            previous_name = product.name
+
+            product.name = name
+            product.description = description
+            product.price = price
+            product.stock = stock
+            product.category = category
+
+            db.session.commit()
+
+            add_audit_event(
+                "Product Updated",
+                (
+                    f"{previous_name} was updated as "
+                    f"{product.name}."
+                ),
+            )
+
+            return redirect(url_for("admin_products"))
+
+        return render_template(
+            "admin_product_form.html",
+            page_title="Edit Product",
+            submit_label="Save Changes",
+            form_values=form_values,
+            error_message=error_message,
+        )
+
+    @app.post(
+        "/admin/products/<int:product_id>/archive"
+    )
+    @admin_required
+    def admin_product_archive(product_id):
+        product = db.get_or_404(Product, product_id)
+
+        if product.is_active:
+            product.is_active = False
+            db.session.commit()
+
+            add_audit_event(
+                "Product Archived",
+                (
+                    f"{product.name} was archived and removed "
+                    "from the customer catalogue."
+                ),
+            )
+
+        return redirect(url_for("admin_products"))
+
+    @app.post(
+        "/admin/products/<int:product_id>/restore"
+    )
+    @admin_required
+    def admin_product_restore(product_id):
+        product = db.get_or_404(Product, product_id)
+
+        if not product.is_active:
+            product.is_active = True
+            db.session.commit()
+
+            add_audit_event(
+                "Product Restored",
+                (
+                    f"{product.name} was restored to the "
+                    "customer catalogue."
+                ),
+            )
+
+        return redirect(url_for("admin_products"))
+
     @app.route("/")
     def home():
-        products = Product.query.order_by(Product.id).all()
+        products = Product.query.filter_by(
+            is_active=True
+        ).order_by(Product.id).all()
 
         return render_template(
             "index.html",
@@ -400,7 +827,10 @@ def create_app(test_config=None):
 
     @app.route("/product/<int:product_id>")
     def product_detail(product_id):
-        product = db.get_or_404(Product, product_id)
+        product = Product.query.filter_by(
+            id=product_id,
+            is_active=True,
+        ).first_or_404()
 
         return render_template(
             "product_detail.html",
@@ -409,7 +839,10 @@ def create_app(test_config=None):
 
     @app.post("/cart/add/<int:product_id>")
     def add_to_cart(product_id):
-        product = db.get_or_404(Product, product_id)
+        product = Product.query.filter_by(
+            id=product_id,
+            is_active=True,
+        ).first_or_404()
 
         try:
             quantity = int(request.form.get("quantity", 1))

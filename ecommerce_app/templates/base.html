@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -9,7 +9,7 @@
     >
 
     <title>
-        {% block title %}Simple Ecommerce Store{% endblock %}
+        {% block title %}NovaGear{% endblock %}
     </title>
 
     <link
@@ -21,25 +21,47 @@
     <header class="site-header">
         <div class="container header-content">
             <a class="brand" href="{{ url_for('home') }}">
-                Simple Ecommerce Store
+                NovaGear
             </a>
 
-            <nav>
-                <a href="{{ url_for('home') }}">
+            <nav
+                class="site-nav"
+                aria-label="Primary navigation"
+            >
+                <a
+                    class="nav-link"
+                    href="{{ url_for('home') }}"
+                >
                     Products
                 </a>
 
-                <a href="{{ url_for('orders') }}">
-                    Orders
-                </a>
-
                 {% if session.get("is_admin") %}
-                    <a href="{{ url_for('admin_monitor') }}">
+                    <a
+                        class="nav-link"
+                        href="{{ url_for('orders') }}"
+                    >
+                        Orders
+                    </a>
+
+                    <a
+                        class="nav-link"
+                        href="{{ url_for('admin_products') }}"
+                    >
+                        Manage Products
+                    </a>
+
+                    <a
+                        class="nav-link"
+                        href="{{ url_for('admin_monitor') }}"
+                    >
                         Monitoring
                     </a>
 
-                    <a href="{{ url_for('admin_logs') }}">
-                        Audit Log
+                    <a
+                        class="nav-link"
+                        href="{{ url_for('admin_logs') }}"
+                    >
+                        Admin Logs
                     </a>
 
                     <form
@@ -48,19 +70,25 @@
                         method="post"
                     >
                         <button
-                            class="nav-button"
+                            class="nav-link nav-button"
                             type="submit"
                         >
                             Logout
                         </button>
                     </form>
                 {% else %}
-                    <a href="{{ url_for('admin_login') }}">
+                    <a
+                        class="nav-link"
+                        href="{{ url_for('admin_login') }}"
+                    >
                         Admin Login
                     </a>
                 {% endif %}
 
-                <a href="{{ url_for('view_cart') }}">
+                <a
+                    class="nav-link"
+                    href="{{ url_for('view_cart') }}"
+                >
                     Cart
                     ({{ session.get("cart", {}).values() | sum }})
                 </a>
@@ -74,7 +102,8 @@
 
     <footer class="site-footer">
         <div class="container">
-            <div>Cloud Computing Course Project</div>
+            &copy; 2026 NovaGear. All rights reserved.
+
             <div class="instance-name">
                 Served by {{ config["INSTANCE_NAME"] }}
             </div>

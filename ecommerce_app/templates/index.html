@@ -1,24 +1,40 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
 
-{% block title %}Products | Simple Ecommerce Store{% endblock %}
+{% block title %}Shop | NovaGear{% endblock %}
 
 {% block content %}
-<section class="hero">
-    <p class="eyebrow">Module 6 Ecommerce Project</p>
-    <h1>Discover Our Products</h1>
-    <p>
-        Browse products stored and retrieved dynamically
-        from a MySQL database.
-    </p>
+<section class="hero hero-panel">
+    <div class="hero-content">
+        <p class="eyebrow">Tech for Everyday Life</p>
+
+        <h1>Upgrade Your Everyday Tech</h1>
+
+        <p class="hero-description">
+            Smart accessories designed for work, travel, and life on the go.
+        </p>
+
+        <div class="hero-actions">
+            <a
+                class="button hero-primary-button"
+                href="#featured-products"
+            >
+                Shop Products
+            </a>
+
+            <span class="hero-offer">
+                Explore practical tech accessories for every setup
+            </span>
+        </div>
+    </div>
 </section>
 
-<div class="sale-banner">
-    Summer Sale: 20% off selected items!
-</div>
-
-<section>
+<section id="featured-products">
     <div class="section-heading">
-        <h2>Available Products</h2>
+        <div>
+            <p class="section-eyebrow">NovaGear Collection</p>
+            <h2>Featured Products</h2>
+        </div>
+
         <span>{{ products|length }} products</span>
     </div>
 
@@ -26,33 +42,54 @@
         <div class="product-grid">
             {% for product in products %}
                 <article class="product-card">
-                    <div class="product-category">
-                        {{ product.category }}
+                    <div class="product-visual">
+                        <span
+                            class="product-icon"
+                            aria-hidden="true"
+                        >
+                            {{ product_icon(product.name, product.category) }}
+                        </span>
                     </div>
 
-                    <h3>{{ product.name }}</h3>
+                    <div class="product-card-body">
+                        <div class="product-category">
+                            {{ product.category }}
+                        </div>
 
-                    <p class="price">
-                        ${{ "%.2f"|format(product.price) }}
-                    </p>
+                        <h3>{{ product.name }}</h3>
 
-                    <p class="description">
-                        {{ product.description }}
-                    </p>
+                        <p class="description">
+                            {{ product.description }}
+                        </p>
+                    </div>
 
-                    <p class="stock">
-                        In Stock: {{ product.stock }}
-                    </p>
+                    <div class="product-card-footer">
+                        <div class="product-card-meta">
+                            <p class="price">
+                                ${{ "%.2f"|format(product.price) }}
+                            </p>
 
-                    <a
-                        class="button"
-                        href="{{ url_for(
-                            'product_detail',
-                            product_id=product.id
-                        ) }}"
-                    >
-                        View Details
-                    </a>
+                            {% if product.stock > 0 %}
+                                <p class="stock-badge">
+                                    In Stock: {{ product.stock }}
+                                </p>
+                            {% else %}
+                                <p class="stock-badge out-of-stock-badge">
+                                    Out of Stock
+                                </p>
+                            {% endif %}
+                        </div>
+
+                        <a
+                            class="button"
+                            href="{{ url_for(
+                                'product_detail',
+                                product_id=product.id
+                            ) }}"
+                        >
+                            View Details
+                        </a>
+                    </div>
                 </article>
             {% endfor %}
         </div>

@@ -1,4 +1,4 @@
-﻿from datetime import datetime, timezone
+from datetime import datetime, timezone
 
 from flask_sqlalchemy import SQLAlchemy
 
@@ -15,6 +15,17 @@ class Product(db.Model):
     stock = db.Column(db.Integer, nullable=False, default=0)
     category = db.Column(db.String(100), nullable=False)
     image_url = db.Column(db.String(500), nullable=True)
+
+    is_active = db.Column(
+        db.Boolean,
+        nullable=False,
+        default=True,
+        server_default="1",
+    )
+
+    def __init__(self, **kwargs):
+        kwargs.setdefault("is_active", True)
+        super().__init__(**kwargs)
 
 
 class Order(db.Model):

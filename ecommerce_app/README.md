@@ -8,6 +8,8 @@ A full-stack ecommerce application built with Flask and MySQL. The project combi
 
 - Dynamic product catalog backed by MySQL
 - Product detail and inventory views
+- Responsive navigation for desktop and mobile devices
+- Product visual placeholders for catalog and detail views
 - Session-based shopping cart
 - Quantity updates, item removal, and cart clearing
 - Stock-aware cart limits
@@ -23,6 +25,7 @@ A full-stack ecommerce application built with Flask and MySQL. The project combi
 - Filtering by Pending, Processing, Shipped, Completed, or Cancelled
 - Detailed customer and order-item views
 - Order-status updates
+- Consistent responsive layouts across customer and administrator pages
 
 ### Reliability and Cloud Features
 
@@ -48,27 +51,36 @@ A full-stack ecommerce application built with Flask and MySQL. The project combi
 
 ## Architecture
 
-```text
-Client Browser
-      |
-      v
-Load Balancer :8000
-      |
-      +---------------------+
-      |                     |
-      v                     v
-Flask Instance 1 :5000   Flask Instance 2 :5001
-      |                     |
-      +----------+----------+
-                 |
-                 v
-             MySQL Database
+```mermaid
+flowchart TB
+    Client["Client Browser<br/>Storefront and administrator interface"]
+    LB["Load Balancer<br/>Port 8000<br/>Round-robin routing and health checks"]
 
-Order Confirmation
-      |
-      v
-Optional Cloudflare Worker
+    subgraph ApplicationTier["Flask Application Tier"]
+        direction LR
+        App1["Instance 1<br/>Port 5000"]
+        App2["Instance 2<br/>Port 5001"]
+    end
+
+    DB["MySQL Database<br/>Products, inventory, orders, and order items"]
+    Worker["Cloudflare Worker<br/>Optional order confirmation"]
+    Logs["Monitoring and Logs<br/>Metrics, audit events, and load-balancer logs"]
+
+    Client -->|HTTP requests| LB
+    LB -->|Healthy traffic| App1
+    LB -->|Healthy traffic| App2
+
+    App1 --> DB
+    App2 --> DB
+
+    App1 -. Optional serverless call .-> Worker
+    App2 -. Optional serverless call .-> Worker
+
+    LB -. Health and routing events .-> Logs
+    App1 -. Metrics and audit events .-> Logs
+    App2 -. Metrics and audit events .-> Logs
 ```
+
 
 The load balancer checks each backend through `/health` every five seconds and forwards requests only to healthy instances. Requests are distributed with round-robin selection. If a connection fails before a backend responds, another healthy instance is attempted.
 
@@ -361,7 +373,7 @@ Run the complete automated test suite:
 The latest verified local run completed successfully:
 
 ```text
-86 passed
+154 passed in 4.87s
 ```
 
 The test suite covers:
@@ -370,6 +382,8 @@ The test suite covers:
 - Product and order models
 - Seed data
 - Product routes
+- Product visual placeholders
+- Responsive navigation and shared UI consistency
 - Cart management
 - Checkout and inventory updates
 - Serverless requests and headers
@@ -381,6 +395,23 @@ The test suite covers:
 - Order-management access control
 - Monitoring metrics
 - Security audit logging
+
+Detailed verification results are available in the [Testing and Reliability Report](docs/testing-report.md).
+
+### Verified Multi-Instance Reliability
+
+The multi-instance configuration was also verified through a live local test:
+
+- Instance 1 ran on port `5000`
+- Instance 2 ran on port `5001`
+- The load balancer ran on port `8000`
+- Six consecutive requests alternated between Instance 1 and Instance 2
+- After Instance 1 stopped, four consecutive requests were served by Instance 2 with HTTP 200 responses
+- The load balancer logged `event=became_unhealthy backend=Instance 1`
+- After Instance 1 restarted, the load balancer logged `event=recovered backend=Instance 1`
+- Subsequent requests alternated between both instances again
+
+This verification demonstrates health-check-based traffic removal, continued availability through a healthy backend, automatic recovery detection, and restoration of round-robin routing.
 
 ## Docker
 
